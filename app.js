@@ -59,7 +59,9 @@ const forcePaidCheck = document.getElementById('forcePaidCheck');
 const btnResetLimit = document.getElementById('btnResetLimit');
 const studentName = document.getElementById('studentName');
 const studentId = document.getElementById('studentId');
+const btnDelStudent = document.getElementById('btnDelStudent');
 const audioFile = document.getElementById('audioFile');
+let studentsDB = {};
 const includeAudioChk = document.getElementById('includeAudio');
 const btnGrade = document.getElementById('btnGrade');
 const logBox = document.getElementById('logBox');
@@ -104,6 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('deepgramKey')) dgInput.value = localStorage.getItem('deepgramKey');
     if (localStorage.getItem('savedAdminModel')) adminModelSelect.value = localStorage.getItem('savedAdminModel');
     if (localStorage.getItem('audioChecked') !== null) includeAudioChk.checked = localStorage.getItem('audioChecked') === 'true';
+
+    if (localStorage.getItem('studentsDB')) {
+        studentsDB = JSON.parse(localStorage.getItem('studentsDB'));
+        updateStudentDropdown();
+    }
 
     let savedName = localStorage.getItem('instructorName');
     let savedEmail = localStorage.getItem('instructorEmail');
@@ -303,6 +310,12 @@ btnGrade.addEventListener('click', async () => {
     if(!gKey || !sName || !sId || !file) { alert("Vui lòng điền đủ Tên, ID, File Audio và Gemini Key!"); return; }
     if(includeAudioChk.checked && !dKey) { alert("Vui lòng nhập Deepgram Key để tạo Audio!"); return; }
 
+    // Tự động lưu học viên vào danh bạ
+    studentsDB[sName] = sId;
+    localStorage.setItem('studentsDB', JSON.stringify(studentsDB));
+    updateStudentDropdown();
+    btnDelStudent.style.display = "none"; // Ẩn thùng rác đi cho gọn
+
     btnGrade.disabled = true;
     btnGrade.innerText = "ĐANG XỬ LÝ...";
     allDoneMsg.style.display = "none";
@@ -397,5 +410,36 @@ btnGrade.addEventListener('click', async () => {
         isProcessingTask = false; // Tắt khiên bảo vệ
         btnGrade.disabled = false;
         btnGrade.innerText = "START GRADING & EXPORT";
+    }
+});
+// ====== XỬ LÝ LƯU & XÓA HỌC VIÊN ======
+function updateStudentDropdown() {
+    const dataList = document.getElementById('studentList');
+    dataList.innerHTML = "";
+    for (let name in studentsDB) {
+        let option = document.createElement('option');
+        option.value = name; dataList.appendChild(option);
+    }
+}
+
+studentName.addEventListener('input', () => {
+    let name = studentName.value.trim();
+    if (studentsDB[name]) {
+        studentId.value = studentsDB[name];
+        btnDelStudent.style.display = "block";
+    } else {
+        studentId.value = "";
+        btnDelStudent.style.display = "none";
+    }
+});
+
+btnDelStudent.addEventListener('click', () => {
+    let name = studentName.value.trim();
+    if (confirm(`Bạn có chắc muốn xóa học viên "${name}" khỏi lịch sử?`)) {
+        delete studentsDB[name];
+        localStorage.setItem('studentsDB', JSON.stringify(studentsDB));
+        updateStudentDropdown();
+        studentName.value = ""; studentId.value = "";
+        btnDelStudent.style.display = "none";
     }
 });
