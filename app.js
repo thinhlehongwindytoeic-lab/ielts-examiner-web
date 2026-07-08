@@ -153,21 +153,9 @@ btnLogout.addEventListener('click', () => {
     mainApp.style.display = "none"; loginScreen.style.display = "block";
 });
 
-function checkVIP() {
-    if (currentName === "MinhIELTS@2026") {
-        headerTitle.innerHTML = "Welcome back, Sirr 👑"; headerTitle.style.color = "#d84315";
-        adminModelContainer.style.display = "block"; 
-    } else {
-        let nameParts = currentName.split(/\s+/);
-        headerTitle.innerHTML = `👋 Welcome back, ${nameParts[nameParts.length - 1]}`;
-        headerTitle.style.color = "#1a73e8"; adminModelContainer.style.display = "none"; forcePaidCheck.checked = false; 
-    }
-}
-
 function fetchQuota() {
     quotaDisplay.style.display = "block"; quotaDisplay.innerHTML = "⏳ Đang đồng bộ máy chủ..."; quotaDisplay.style.backgroundColor = "#f1f3f4";
     
-    // Cài đồng hồ đếm ngược 30s (Cho máy chủ Google đủ thời gian thức dậy)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -177,17 +165,26 @@ function fetchQuota() {
     }).then(res => { clearTimeout(timeoutId); return res.json(); })
     .then(data => {
         if (data.status === "success") {
+            // MÁY CHỦ BÁO LÀ VIP THÌ MỚI ĐƯỢC MỞ GIAO DIỆN VIP
             if (data.isVIP) {
+                headerTitle.innerHTML = "Welcome back, Sirr 👑"; headerTitle.style.color = "#d84315";
+                adminModelContainer.style.display = "block";
+                
                 quotaDisplay.innerHTML = `👑 Quota PAID hôm nay: ${data.gradedToday} / ∞ bài`; quotaDisplay.style.backgroundColor = "#fff9c4";
                 budgetDisplay.innerHTML = `💰 Ngân sách tháng: ${data.monthSpent.toLocaleString()} / ${data.monthBudget.toLocaleString()} VNĐ`; budgetDisplay.style.display = "block";
             } else {
+                let nameParts = currentName.split(/\s+/);
+                headerTitle.innerHTML = `👋 Welcome back, ${nameParts[nameParts.length - 1]}`;
+                headerTitle.style.color = "#1a73e8"; 
+                adminModelContainer.style.display = "none"; forcePaidCheck.checked = false;
+                
                 quotaDisplay.innerHTML = `📊 Quota PAID hôm nay: ${data.gradedToday} / ${data.limit} bài`; quotaDisplay.style.backgroundColor = "#e8f0fe"; budgetDisplay.style.display = "none";
             }
         } else { quotaDisplay.innerHTML = `⚠️ Lỗi: ${data.message}`; quotaDisplay.style.backgroundColor = "#f8d7da"; }
     }).catch(err => { 
         if (err.name === 'AbortError') {
-            quotaDisplay.innerHTML = "⏳ Connecting...";
-            setTimeout(fetchQuota, 3000); // Đợi 3s mới gọi lại cho đỡ spam
+            quotaDisplay.innerHTML = "⏳ Hệ thống đang phản hồi, vui lòng chờ...";
+            setTimeout(fetchQuota, 3000);
         } else {
             quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`; 
         }
