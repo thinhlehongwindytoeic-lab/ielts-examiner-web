@@ -159,9 +159,16 @@ function checkVIP() {
 
 function fetchQuota() {
     quotaDisplay.style.display = "block"; quotaDisplay.innerHTML = "⏳ Đang đồng bộ máy chủ..."; quotaDisplay.style.backgroundColor = "#f1f3f4";
+    
+    // Cài đồng hồ đếm ngược 10s. Nếu quá 10s mà trình duyệt ngâm lệnh, tự động hủy để gọi lại.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     fetch(GOOGLE_SCRIPT_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: "CHECK_STATUS", deviceId: deviceId, instructor: currentName })
-    }).then(res => res.json()).then(data => {
+        body: JSON.stringify({ action: "CHECK_STATUS", deviceId: deviceId, instructor: currentName }),
+        signal: controller.signal
+    }).then(res => { clearTimeout(timeoutId); return res.json(); })
+    .then(data => {
         if (data.status === "success") {
             if (data.isVIP) {
                 quotaDisplay.innerHTML = `👑 Quota PAID hôm nay: ${data.gradedToday} / ∞ bài`; quotaDisplay.style.backgroundColor = "#fff9c4";
@@ -170,8 +177,22 @@ function fetchQuota() {
                 quotaDisplay.innerHTML = `📊 Quota PAID hôm nay: ${data.gradedToday} / ${data.limit} bài`; quotaDisplay.style.backgroundColor = "#e8f0fe"; budgetDisplay.style.display = "none";
             }
         } else { quotaDisplay.innerHTML = `⚠️ Lỗi: ${data.message}`; quotaDisplay.style.backgroundColor = "#f8d7da"; }
-    }).catch(err => { quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`; });
+    }).catch(err => { 
+        if (err.name === 'AbortError') {
+            quotaDisplay.innerHTML = "⏳ Máy chủ bận, đang thử lại...";
+            setTimeout(fetchQuota, 1500); // Bị Chrome ngắt thì tự động gọi lại
+        } else {
+            quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`; 
+        }
+    });
 }
+
+// BỘ ĐÁNH THỨC: Khi giáo viên click quay lại Tab này, nếu thấy chữ "Đang đồng bộ..." bị kẹt, web lập tức gọi lệnh mới!
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === 'visible' && quotaDisplay.innerHTML.includes("⏳")) {
+        fetchQuota(); 
+    }
+});
 
 btnResetLimit.addEventListener('click', () => {
     btnResetLimit.innerText = "⏳...";
