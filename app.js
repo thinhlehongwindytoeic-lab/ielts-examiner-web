@@ -51,6 +51,7 @@ const loginName = document.getElementById('loginName');
 const loginEmailInput = document.getElementById('loginEmail');
 const btnLogin = document.getElementById('btnLogin');
 const headerTitle = document.getElementById('headerTitle');
+const btnLogout = document.getElementById('btnLogout');
 const gmInput = document.getElementById('geminiKey');
 const dgInput = document.getElementById('deepgramKey');
 const adminModelContainer = document.getElementById('adminModelContainer');
@@ -142,6 +143,12 @@ btnLogin.addEventListener('click', () => {
 });
 
 headerTitle.addEventListener('click', () => {
+    loginName.value = currentName; loginEmailInput.value = currentEmail;
+    mainApp.style.display = "none"; loginScreen.style.display = "flex";
+});
+
+// Sự kiện bấm nút Đăng Xuất
+btnLogout.addEventListener('click', () => {
     loginName.value = currentName; loginEmailInput.value = currentEmail;
     mainApp.style.display = "none"; loginScreen.style.display = "flex";
 });
