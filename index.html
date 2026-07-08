@@ -2,123 +2,116 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Examiner Pro</title>
     <style>
-        body { width: 400px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; margin: 0;}
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        h2 { color: #1a73e8; margin: 0; font-size: 20px; transition: all 0.4s ease-in-out; cursor: pointer;}
-        .help-icon { background: #fbbc05; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; font-size: 14px; }
-        .help-icon:hover { background: #f2a600; }
-        .help-box { display: none; background: #e8f0fe; border-left: 4px solid #1a73e8; padding: 10px; font-size: 13px; margin-bottom: 15px; border-radius: 4px; color: #333; line-height: 1.5; }
-        .help-box a { color: #1a73e8; text-decoration: none; font-weight: bold; }
-        .help-box a:hover { text-decoration: underline; }
-        .row { display: flex; gap: 5px; margin-bottom: 10px; align-items: center; }
-        .row input { flex: 1; margin-bottom: 0; }
-        input, select, button { box-sizing: border-box; padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-family: inherit;}
-        button { background-color: #1a73e8; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #1557b0; }
-        .btn-del { background-color: #dc3545; width: 40px; font-size: 16px; padding: 6px 0;}
-        .btn-del:hover { background-color: #c82333; }
-        .full-width { width: 100%; margin-bottom: 10px; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #e9ecef; /* Nền màu xám nhẹ sang trọng */
+            display: flex; 
+            justify-content: center; /* Căn ra giữa theo chiều ngang */
+            align-items: center; /* Căn ra giữa theo chiều dọc */
+            min-height: 100vh; /* Cao phủ kín màn hình */
+            margin: 0; 
+            padding: 20px;
+        }
+        .container { 
+            background: white; 
+            width: 100%; 
+            max-width: 600px; /* Khung bự và rộng rãi hơn */
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); /* Đổ bóng nổi bật */
+        }
+        h2 { color: #1a73e8; margin-top: 0; text-align: center; font-size: 26px; margin-bottom: 25px; cursor: pointer;}
+        input, select, button { 
+            width: 100%; 
+            padding: 14px; /* Chữ to, ô bự dễ bấm */
+            margin-bottom: 16px; 
+            border-radius: 8px; 
+            border: 1px solid #ced4da; 
+            font-size: 15px; 
+            transition: 0.3s;
+        }
+        input:focus, select:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 3px rgba(26,115,232,0.2); }
+        button { background-color: #1a73e8; color: white; border: none; cursor: pointer; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;}
+        button:hover { background-color: #1557b0; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(26,115,232,0.3); }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; transform: none; box-shadow: none; }
         
-        #saveToast { color: #28a745; font-size: 12px; font-style: italic; text-align: right; margin-top: -5px; margin-bottom: 10px; opacity: 0; transition: opacity 0.5s ease-in-out; height: 15px; }
-        #logBox { background-color: #1e1e1e; color: #00ff00; font-family: 'Calibri', sans-serif; font-size: 13px; height: 180px; overflow-y: auto; padding: 10px; border-radius: 4px; margin-top: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); line-height: 1.4; display: block; }
+        .hint-text { font-size: 14px; color: #6c757d; text-align: center; margin-top: -10px; margin-bottom: 25px;}
+        .row-flex { display: flex; gap: 15px; }
+        .row-flex input { margin-bottom: 16px; }
+        
+        #logBox { background-color: #1e1e1e; color: #00ff00; font-family: 'Consolas', monospace; font-size: 14px; height: 280px; overflow-y: auto; padding: 15px; border-radius: 8px; margin-top: 20px; line-height: 1.5; white-space: pre-wrap;}
         .log-err { color: #ff5555; }
         .log-warn { color: #ffcc00; }
-        .action-btns { display: flex; gap: 5px; margin-top: 10px; }
-        .action-btns button { flex: 1; padding: 6px; font-size: 12px; }
+        .vip-box { background: #fff9c4; border: 1px dashed #fbc02d; padding: 15px; margin-bottom: 20px; border-radius: 8px; display: none; }
+        
+        #quotaDisplay, #budgetDisplay, #allDoneMsg { font-size: 14px; font-weight: bold; text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
-    <!-- Màn hình khóa danh tính -->
-    <div id="loginScreen" style="display: flex; flex-direction: column; gap: 10px; background: white; padding: 20px; min-height: 200px; justify-content: center;">
-        <h2 style="text-align: center; margin-bottom: 20px; color: #1a73e8;">ĐĂNG NHẬP</h2>
-        <input type="text" id="loginName" placeholder="Tên Giáo viên (VD: Công Minh)" style="padding: 10px;">
-        <input type="email" id="loginEmail" placeholder="Email nhận kết quả (Bắt buộc)" style="padding: 10px;">
-        <button id="btnLogin" style="padding: 12px; margin-top: 10px;">BẮT ĐẦU LÀM VIỆC</button>
-        <p style="font-size: 11px; color: #666; text-align: center; margin-top: 10px;">Kết quả chấm sẽ được gửi thẳng vào Email này dưới dạng tệp đính kèm.</p>
-    </div>
+    <div class="container">
+        <!-- MÀN HÌNH ĐĂNG NHẬP -->
+        <div id="loginScreen">
+            <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
+            <div class="hint-text">Vui lòng nhập thông tin để hệ thống gửi kết quả về đúng Email của bạn.</div>
+            <input type="text" id="loginName" placeholder="Tên Giáo viên (VD: Công Minh)">
+            <input type="email" id="loginEmail" placeholder="Email nhận kết quả (Bắt buộc)">
+            <button id="btnLogin">BẮT ĐẦU LÀM VIỆC</button>
+        </div>
 
-    <!-- Ứng dụng chính -->
-    <div id="mainApp" style="display: none;">
-    <div class="header-row">
-        <h2 id="headerTitle" title="Bấm vào đây để đổi tên Giáo viên">🎯 IELTS EXAMINER PRO</h2>
-        <div class="help-icon" id="btnHelp" title="Hướng dẫn lấy API Key">?</div>
-    </div>
-
-    <div class="help-box" id="helpBox">
-        <strong>Hướng dẫn lấy API Key (Miễn phí):</strong><br>
-        1. Gemini API: <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.<br>
-        2. Deepgram API: <a href="https://console.deepgram.com/" target="_blank">Deepgram Console</a>.
-    </div>
-    
-    <div class="row">
-        <input type="password" id="geminiKey" placeholder="Gemini API Key (AIzaSy...)">
-    </div>
-    <div class="row">
-        <input type="password" id="deepgramKey" placeholder="Deepgram API Key">
-    </div>
-    
-    <div id="saveToast">✅ Đã tự động lưu API Key!</div>
-
-    <!-- Đã ẩn ô nhập tên vì đã có màn hình Đăng nhập -->
-    <div id="instructorContainer" style="display: none;">
-        <input type="hidden" id="instructorName">
-        <span id="vipCrown"></span>
-    </div>
-
-    <div id="adminModelContainer" style="display: none; margin-bottom: 10px; background: #fff9c4; padding: 6px; border-radius: 4px; border: 1px dashed #fbc02d;">
-
-        <select id="adminModelSelect" class="full-width" style="margin-bottom: 6px; border-color: #fbc02d; font-weight: bold; padding: 6px;">
-            <option value="gemini-3.5-flash">Gemini 3.5 Flash (Base)</option>
-            <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (33% cost)</option>
-            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (16% cost)</option>
-        </select>
-        <div style="display: flex; gap: 5px;">
-            <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; background: #ffe0b2; padding: 4px 6px; border-radius: 4px;">
-                <label for="forcePaidCheck" style="font-size: 13px; font-weight: bold; color: #c62828; cursor: pointer;">💸 Force PAID API</label>
-                <input type="checkbox" id="forcePaidCheck" style="cursor: pointer; width: 16px; height: 16px; margin: 0;">
+        <!-- MÀN HÌNH CHÍNH (APP) -->
+        <div id="mainApp" style="display: none;">
+            <h2 id="headerTitle" title="Bấm để đổi tài khoản">🎯 IELTS EXAMINER PRO</h2>
+            
+            <input type="password" id="geminiKey" placeholder="Gemini API Key (Bắt buộc)">
+            <input type="password" id="deepgramKey" placeholder="Deepgram API Key (Nếu cần tạo Audio)">
+            
+            <!-- KHU VỰC VIP ADMIN -->
+            <div id="adminModelContainer" class="vip-box">
+                <select id="adminModelSelect" style="border-color: #fbc02d; font-weight: bold; background: white;">
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (Base)</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (33% cost)</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (16% cost)</option>
+                </select>
+                <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                    <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; background: #ffe0b2; padding: 10px; border-radius: 6px;">
+                        <label for="forcePaidCheck" style="font-size: 14px; font-weight: bold; color: #c62828; cursor: pointer; margin: 0;">💸 Force PAID API</label>
+                        <input type="checkbox" id="forcePaidCheck" style="cursor: pointer; width: 20px; height: 20px; margin: 0;">
+                    </div>
+                    <button id="btnResetLimit" style="background: #28a745; width: 100px; padding: 10px; margin: 0;">🔄 Reset</button>
+                </div>
             </div>
-            <button id="btnResetLimit" style="background: #28a745; width: 100px; font-size: 12px; padding: 4px; border-radius: 4px; color: white; cursor: pointer; border: none; font-weight: bold;">🔄 Reset</button>
+
+            <!-- THÔNG TIN HỌC VIÊN -->
+            <div class="row-flex">
+                <input type="text" id="studentName" placeholder="Tên Học viên (VD: Vivian)">
+                <input type="text" id="studentId" placeholder="Mã ID (VD: 19281)" style="width: 40%;">
+            </div>
+            
+            <input type="file" id="audioFile" accept="audio/*">
+            
+            <div style="display: flex; align-items: center; margin-bottom: 20px; padding-left: 5px;">
+                <input type="checkbox" id="includeAudio" checked style="width: 20px; height: 20px; margin: 0 10px 0 0; cursor: pointer;">
+                <label for="includeAudio" style="font-size: 15px; font-weight: bold; cursor: pointer; color: #333;">Tạo Audio Mẫu (Cần Deepgram Key)</label>
+            </div>
+            
+            <!-- BẢNG THEO DÕI QUOTA -->
+            <div id="quotaDisplay" style="display: none;"></div>
+            <div id="budgetDisplay" style="color: #d84315; display: none;"></div>
+            
+            <div id="allDoneMsg" style="display: none; color: #155724; background-color: #d4edda; border-color: #c3e6cb;">
+                ✅ ĐÃ GỬI XONG! KIỂM TRA EMAIL CỦA BẠN.
+            </div>
+
+            <button id="btnGrade">START GRADING & EXPORT</button>
+            <button id="btnClearLog" style="background: #6c757d; margin-top: 15px;">Xóa Log</button>
+            
+            <div id="logBox">Hệ thống đã sẵn sàng...</div>
         </div>
     </div>
-
-    <div class="row">
-        <input type="text" id="studentName" list="studentList" placeholder="Student Name" autocomplete="off">
-        <datalist id="studentList"></datalist>
-        <button id="btnDelStudent" class="btn-del" title="Delete Student" style="display:none;">🗑️</button>
-    </div>
-    
-    <input type="text" id="studentId" class="full-width" placeholder="Student ID">
-    
-    <input type="file" id="audioFile" class="full-width" accept="audio/*" style="margin-bottom: 4px;">
-    
-    <div id="costEstimateBox" style="display: none; font-size: 12px; color: #d84315; background: #ffe0b2; padding: 6px; border-radius: 4px; margin-bottom: 10px; text-align: center; font-weight: bold; border: 1px dashed #ffb74d;"></div>
-    
-    <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
-        <div style="display: flex; align-items: center;">
-            <input type="checkbox" id="includeAudio" checked style="width: 16px; height: 16px; margin: 0 8px 0 0; cursor: pointer;">
-            <label for="includeAudio" style="font-size: 13px; font-weight: bold; cursor: pointer;">Include Audio (Model Answers)</label>
-        </div>
-    </div>
-    
-    <div id="quotaDisplay" style="font-size: 13px; font-weight: bold; margin-bottom: 6px; text-align: center; padding: 6px; border-radius: 4px; display: none; transition: all 0.3s ease;"></div>
-    <div id="budgetDisplay" style="font-size: 12px; font-weight: bold; margin-bottom: 12px; text-align: center; color: #d84315; display: none;"></div>
-
-    <button id="btnGrade" class="full-width" style="padding: 12px;">START GRADING & EXPORT</button>
-    
-    <!-- KHUNG THÔNG BÁO TẤT CẢ ĐÃ XONG -->
-    <div id="allDoneMsg" style="display: none; color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; margin-top: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 13px;">
-        ✅ ALL DONE! BẠN HÃY KIỂM TRA EMAIL.
-    </div>
-
-    <div class="action-btns">
-
-        <button id="btnToggleLog" style="background: #17a2b8;">Hide Log</button>
-        <button id="btnClearLog" style="background: #6c757d;">Clear Log</button>
-    </div>
-    <div id="logBox"></div>
-    </div> <!-- Đóng thẻ mainApp -->
-
-    <script src="popup.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
