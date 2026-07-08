@@ -186,7 +186,7 @@ function fetchQuota() {
         } else { quotaDisplay.innerHTML = `⚠️ Lỗi: ${data.message}`; quotaDisplay.style.backgroundColor = "#f8d7da"; }
     }).catch(err => { 
         if (err.name === 'AbortError') {
-            quotaDisplay.innerHTML = "⏳ Đang đánh thức máy chủ (hơi lâu một chút)...";
+            quotaDisplay.innerHTML = "⏳ Connecting...";
             setTimeout(fetchQuota, 3000); // Đợi 3s mới gọi lại cho đỡ spam
         } else {
             quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`; 
