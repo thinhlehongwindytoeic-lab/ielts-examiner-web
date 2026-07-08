@@ -87,8 +87,12 @@
 
             <!-- THÔNG TIN HỌC VIÊN -->
             <div class="row-flex">
-                <input type="text" id="studentName" placeholder="Tên Học Viên:">
-                <input type="text" id="studentId" placeholder="ID:" style="width: 40%;">
+                <div style="flex: 1; position: relative;">
+                    <input type="text" id="studentName" list="studentList" placeholder="Tên Học Viên:" autocomplete="off" style="width: 100%;">
+                    <datalist id="studentList"></datalist>
+                </div>
+                <input type="text" id="studentId" placeholder="ID:" style="width: 30%;">
+                <button id="btnDelStudent" title="Xóa học viên" style="display:none; width: 50px; background-color: #dc3545; padding: 0; margin-bottom: 16px; height: 49px; line-height: 49px; text-align: center;">🗑️</button>
             </div>
             
             <input type="file" id="audioFile" accept="audio/*">
