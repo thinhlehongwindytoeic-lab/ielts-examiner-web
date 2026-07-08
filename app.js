@@ -1,5 +1,5 @@
 // ====== CẤU HÌNH HỆ THỐNG ======
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUAjJXEwESqUpHDFuZVneloSfcv4-QX3g56VlZU1iAFgjhlJv6W-XV15ftM1S2-2nQ/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUAjJXEwESqUpHDFuZVneloSfcv4-QX3g56VlZU1iAFgjhlJv6W-XV15ftM1S2-2nQ/exec"; 
 
 const SYSTEM_PROMPT = `- Gọi người nói là “thí sinh”.
 - BỎ QUA hiện tượng nuốt âm /t/ và /d/ tự nhiên trong Connected Speech. BỎ QUA việc thí sinh đọc to câu hỏi trước khi trả lời. 
@@ -70,15 +70,22 @@ const allDoneMsg = document.getElementById('allDoneMsg');
 let currentName = "";
 let currentEmail = "";
 let deviceId = "";
+let isProcessingTask = false; // Biến chặn tắt trang
 
-// Lấy Device ID ngẫu nhiên trên Web
+// Khiên bảo vệ: Cảnh báo khi người dùng cố tắt trình duyệt lúc đang chấm bài
+window.addEventListener('beforeunload', function (e) {
+    if (isProcessingTask) {
+        e.preventDefault();
+        e.returnValue = ''; 
+    }
+});
+
 function getDeviceId() {
     let id = localStorage.getItem('deviceId');
     if (!id) { id = crypto.randomUUID(); localStorage.setItem('deviceId', id); }
     return id;
 }
 
-// In Log ra màn hình Web
 function addLog(msg, type="info") {
     let span = document.createElement('span');
     if(type === "error") span.className = "log-err";
@@ -90,7 +97,7 @@ function addLog(msg, type="info") {
 }
 document.getElementById('btnClearLog').addEventListener('click', () => { logBox.innerHTML = ""; });
 
-// KHỞI ĐỘNG (Load dữ liệu từ LocalStorage)
+// KHỞI ĐỘNG
 document.addEventListener('DOMContentLoaded', () => {
     deviceId = getDeviceId();
     if (localStorage.getItem('geminiKey')) gmInput.value = localStorage.getItem('geminiKey');
@@ -110,107 +117,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// LƯU API KEY TỰ ĐỘNG
+// LƯU TỰ ĐỘNG
 gmInput.addEventListener('input', () => localStorage.setItem('geminiKey', gmInput.value));
 dgInput.addEventListener('input', () => localStorage.setItem('deepgramKey', dgInput.value));
 adminModelSelect.addEventListener('change', () => localStorage.setItem('savedAdminModel', adminModelSelect.value));
 includeAudioChk.addEventListener('change', () => localStorage.setItem('audioChecked', includeAudioChk.checked));
 
-// NÚT ĐĂNG NHẬP
 btnLogin.addEventListener('click', () => {
     let n = loginName.value.trim();
     let e = loginEmailInput.value.trim();
     if(!n || !e) { alert("Vui lòng nhập đủ Tên và Email!"); return; }
-    
-    localStorage.setItem('instructorName', n);
-    localStorage.setItem('instructorEmail', e);
+    localStorage.setItem('instructorName', n); localStorage.setItem('instructorEmail', e);
     currentName = n; currentEmail = e;
-    
     loginScreen.style.display = "none";
     mainApp.style.display = "block";
     checkVIP(); fetchQuota();
 });
 
-// BẤM VÀO TIÊU ĐỀ ĐỂ ĐỔI TÀI KHOẢN
 headerTitle.addEventListener('click', () => {
-    loginName.value = currentName;
-    loginEmailInput.value = currentEmail;
-    mainApp.style.display = "none";
-    loginScreen.style.display = "flex";
+    loginName.value = currentName; loginEmailInput.value = currentEmail;
+    mainApp.style.display = "none"; loginScreen.style.display = "flex";
 });
 
-// KIỂM TRA VIP
 function checkVIP() {
     if (currentName === "MinhIELTS@2026") {
-        headerTitle.innerHTML = "Welcome back, Sirr 👑";
-        headerTitle.style.color = "#d84315";
+        headerTitle.innerHTML = "Welcome back, Sirr 👑"; headerTitle.style.color = "#d84315";
         adminModelContainer.style.display = "block"; 
     } else {
         let nameParts = currentName.split(/\s+/);
         headerTitle.innerHTML = `👋 Welcome back, ${nameParts[nameParts.length - 1]}`;
-        headerTitle.style.color = "#1a73e8";
-        adminModelContainer.style.display = "none"; 
-        forcePaidCheck.checked = false; 
+        headerTitle.style.color = "#1a73e8"; adminModelContainer.style.display = "none"; forcePaidCheck.checked = false; 
     }
 }
 
-// LẤY QUOTA NGẦM TỪ SERVER (Không chặn Start)
 function fetchQuota() {
-    quotaDisplay.style.display = "block";
-    quotaDisplay.innerHTML = "⏳ Đang đồng bộ máy chủ...";
-    quotaDisplay.style.backgroundColor = "#f1f3f4";
-    
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST', redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    quotaDisplay.style.display = "block"; quotaDisplay.innerHTML = "⏳ Đang đồng bộ máy chủ..."; quotaDisplay.style.backgroundColor = "#f1f3f4";
+    fetch(GOOGLE_SCRIPT_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: "CHECK_STATUS", deviceId: deviceId, instructor: currentName })
-    })
-    .then(res => res.json())
-    .then(data => {
+    }).then(res => res.json()).then(data => {
         if (data.status === "success") {
             if (data.isVIP) {
-                quotaDisplay.innerHTML = `👑 Quota PAID hôm nay: ${data.gradedToday} / ∞ bài`;
-                quotaDisplay.style.backgroundColor = "#fff9c4";
-                budgetDisplay.innerHTML = `💰 Ngân sách tháng: ${data.monthSpent.toLocaleString()} / ${data.monthBudget.toLocaleString()} VNĐ`;
-                budgetDisplay.style.display = "block";
+                quotaDisplay.innerHTML = `👑 Quota PAID hôm nay: ${data.gradedToday} / ∞ bài`; quotaDisplay.style.backgroundColor = "#fff9c4";
+                budgetDisplay.innerHTML = `💰 Ngân sách tháng: ${data.monthSpent.toLocaleString()} / ${data.monthBudget.toLocaleString()} VNĐ`; budgetDisplay.style.display = "block";
             } else {
-                quotaDisplay.innerHTML = `📊 Quota PAID hôm nay: ${data.gradedToday} / ${data.limit} bài`;
-                quotaDisplay.style.backgroundColor = "#e8f0fe";
-                budgetDisplay.style.display = "none";
+                quotaDisplay.innerHTML = `📊 Quota PAID hôm nay: ${data.gradedToday} / ${data.limit} bài`; quotaDisplay.style.backgroundColor = "#e8f0fe"; budgetDisplay.style.display = "none";
             }
-        } else {
-            quotaDisplay.innerHTML = `⚠️ Lỗi: ${data.message}`;
-            quotaDisplay.style.backgroundColor = "#f8d7da";
-        }
-    }).catch(err => {
-        quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`;
-    });
+        } else { quotaDisplay.innerHTML = `⚠️ Lỗi: ${data.message}`; quotaDisplay.style.backgroundColor = "#f8d7da"; }
+    }).catch(err => { quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`; });
 }
 
-// NÚT RESET LIMIT CHO VIP
 btnResetLimit.addEventListener('click', () => {
     btnResetLimit.innerText = "⏳...";
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    fetch(GOOGLE_SCRIPT_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: "RESET_LIMIT", deviceId: deviceId, instructor: currentName })
-    })
-    .then(res => res.json())
-    .then(data => {
+    }).then(res => res.json()).then(data => {
         btnResetLimit.innerText = "🔄 Reset";
-        if(data.status === "success") { addLog(data.message, "info"); fetchQuota(); }
-        else addLog("Lỗi: " + data.message, "error");
+        if(data.status === "success") { addLog(data.message, "info"); fetchQuota(); } else addLog("Lỗi: " + data.message, "error");
     }).catch(err => { btnResetLimit.innerText = "🔄 Reset"; addLog("Mất kết nối", "error"); });
 });
 
-
-// ==========================================
-// ====== LÕI XỬ LÝ AI & BACKEND CHÍNH ======
-// ==========================================
-
+// ====== LÕI XỬ LÝ AI ======
 function forceParseJSON(rawText) {
     let cleaned = rawText.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-    cleaned = cleaned.replace(/[\u0000-\u001F]+/g, " ");
-    cleaned = cleaned.replace(/[“”]/g, '"');
+    cleaned = cleaned.replace(/[\u0000-\u001F]+/g, " "); cleaned = cleaned.replace(/[“”]/g, '"');
     if (!cleaned.endsWith('}')) cleaned += '"}';
     try { return JSON.parse(cleaned); } catch(e1) {
         let fixedQuotes = cleaned.replace(/(?<!^)(?<![:{\[\,]\s*)"(?!\s*[:}\]\,])/g, "'");
@@ -323,7 +292,7 @@ function blobToBase64(blob) {
     });
 }
 
-// BẤM NÚT START (Không chặn, chạy thẳng luôn)
+// BẤM NÚT START
 btnGrade.addEventListener('click', async () => {
     let gKey = gmInput.value.trim();
     let dKey = dgInput.value.trim();
@@ -337,6 +306,7 @@ btnGrade.addEventListener('click', async () => {
     btnGrade.disabled = true;
     btnGrade.innerText = "ĐANG XỬ LÝ...";
     allDoneMsg.style.display = "none";
+    isProcessingTask = true; // Bật khiên bảo vệ
     addLog(`\n--- BẮT ĐẦU CHẤM BÀI: ${sName} ---`);
 
     let targetModel = (adminModelContainer.style.display === "block") ? adminModelSelect.value : "gemini-3.5-flash";
@@ -414,13 +384,13 @@ btnGrade.addEventListener('click', async () => {
         
         addLog(`🎉 HOÀN THÀNH: Đã gửi file của [${sName}] vào Email!`);
         allDoneMsg.style.display = "block";
-        fetchQuota(); // Load lại tiền
+        fetchQuota(); 
 
-        // Reset Form
         studentName.value = ""; studentId.value = ""; audioFile.value = "";
     } catch(err) {
         addLog(`❌ LỖI: ${err.message}`, "error");
     } finally {
+        isProcessingTask = false; // Tắt khiên bảo vệ
         btnGrade.disabled = false;
         btnGrade.innerText = "START GRADING & EXPORT";
     }
