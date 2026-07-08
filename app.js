@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEmail = savedEmail;
         loginScreen.style.display = "none";
         mainApp.style.display = "block";
-        checkVIP(); fetchQuota();
+        fetchQuota();
     }
 });
 
@@ -139,7 +139,7 @@ btnLogin.addEventListener('click', () => {
     currentName = n; currentEmail = e;
     loginScreen.style.display = "none";
     mainApp.style.display = "block";
-    checkVIP(); fetchQuota();
+    fetchQuota();
 });
 
 headerTitle.addEventListener('click', () => {
