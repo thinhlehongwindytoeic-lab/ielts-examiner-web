@@ -8,26 +8,26 @@
         * { box-sizing: border-box; }
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #e9ecef; /* Nền màu xám nhẹ sang trọng */
+            background-color: #e9ecef; 
             display: flex; 
-            justify-content: center; /* Căn ra giữa theo chiều ngang */
-            align-items: center; /* Căn ra giữa theo chiều dọc */
-            min-height: 100vh; /* Cao phủ kín màn hình */
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
             margin: 0; 
             padding: 20px;
         }
         .container { 
             background: white; 
             width: 100%; 
-            max-width: 600px; /* Khung bự và rộng rãi hơn */
+            max-width: 600px; 
             padding: 40px; 
             border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); /* Đổ bóng nổi bật */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
         }
         h2 { color: #1a73e8; margin-top: 0; text-align: center; font-size: 26px; margin-bottom: 25px; cursor: pointer;}
         input, select, button { 
             width: 100%; 
-            padding: 14px; /* Chữ to, ô bự dễ bấm */
+            padding: 14px; 
             margin-bottom: 16px; 
             border-radius: 8px; 
             border: 1px solid #ced4da; 
@@ -66,8 +66,8 @@
         <div id="mainApp" style="display: none;">
             <h2 id="headerTitle" title="Bấm để đổi tài khoản">🎯 IELTS EXAMINER PRO</h2>
             
-            <input type="password" id="geminiKey" placeholder="Gemini API Key (Bắt buộc)">
-            <input type="password" id="deepgramKey" placeholder="Deepgram API Key (Nếu cần tạo Audio)">
+            <input type="password" id="geminiKey" placeholder="Gemini API Key">
+            <input type="password" id="deepgramKey" placeholder="Deepgram API Key">
             
             <!-- KHU VỰC VIP ADMIN -->
             <div id="adminModelContainer" class="vip-box">
@@ -87,8 +87,8 @@
 
             <!-- THÔNG TIN HỌC VIÊN -->
             <div class="row-flex">
-                <input type="text" id="studentName" placeholder="Tên Học viên (VD: Vivian)">
-                <input type="text" id="studentId" placeholder="Mã ID (VD: 19281)" style="width: 40%;">
+                <input type="text" id="studentName" placeholder="Tên Học Viên:">
+                <input type="text" id="studentId" placeholder="ID:" style="width: 40%;">
             </div>
             
             <input type="file" id="audioFile" accept="audio/*">
@@ -109,7 +109,7 @@
             <button id="btnGrade">START GRADING & EXPORT</button>
             <button id="btnClearLog" style="background: #6c757d; margin-top: 15px;">Xóa Log</button>
             
-            <div id="logBox">Hệ thống đã sẵn sàng...</div>
+            <div id="logBox"></div>
         </div>
     </div>
     <script src="app.js"></script>
