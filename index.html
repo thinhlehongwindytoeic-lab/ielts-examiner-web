@@ -57,14 +57,17 @@
         <div id="loginScreen">
             <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
             <div class="hint-text">Vui lòng nhập thông tin để hệ thống gửi kết quả về đúng Email của bạn.</div>
-            <input type="text" id="loginName" placeholder="Tên Giáo viên (VD: Công Minh)">
-            <input type="email" id="loginEmail" placeholder="Email nhận kết quả (Bắt buộc)">
+            <input type="text" id="loginName" placeholder="Tên Giáo Viên">
+            <input type="email" id="loginEmail" placeholder="Email nhận kết quả">
             <button id="btnLogin">BẮT ĐẦU LÀM VIỆC</button>
         </div>
 
         <!-- MÀN HÌNH CHÍNH (APP) -->
         <div id="mainApp" style="display: none;">
-            <h2 id="headerTitle" title="Bấm để đổi tài khoản">🎯 IELTS EXAMINER PRO</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 id="headerTitle" title="Bấm để đổi tài khoản" style="margin-bottom: 0; font-size: 22px; text-align: left;">🎯 IELTS EXAMINER PRO</h2>
+                <button id="btnLogout" style="width: auto; padding: 8px 12px; margin: 0; font-size: 13px; background-color: #dc3545; border-radius: 6px;" title="Đổi tài khoản / Email">Đăng Xuất</button>
+            </div>
             
             <input type="password" id="geminiKey" placeholder="Gemini API Key">
             <input type="password" id="deepgramKey" placeholder="Deepgram API Key">
