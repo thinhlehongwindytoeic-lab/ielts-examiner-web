@@ -214,7 +214,6 @@ btnResetLimit.addEventListener('click', () => {
 async function safeFetchWithRetry(payload, maxRetries = 5) {
     let delay = 1000;
     for (let i = 1; i <= maxRetries; i++) {
-        if (!navigator.onLine) throw new Error("NETWORK_DISCONNECTED");
         try {
             let res = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -227,15 +226,12 @@ async function safeFetchWithRetry(payload, maxRetries = 5) {
                 if (i < maxRetries) {
                     addLog(`⏳ Server Google đang quá tải. Lùi lại ${delay/1000}s gõ cửa tiếp (Lần ${i}/${maxRetries})...`, "warn");
                     await new Promise(r => setTimeout(r, delay));
-                    delay *= 2; // Lùi cấp số nhân (1s, 2s, 4s, 8s) để chen hàng an toàn
+                    delay *= 2; 
                     continue;
                 } else throw new Error("Máy chủ Google kẹt cứng, vui lòng chấm lại sau vài phút!");
             }
-            return JSON.parse(text); // An toàn lọt qua cửa
+            return JSON.parse(text); 
         } catch (err) {
-            if (err.message === "NETWORK_DISCONNECTED" || err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-                throw new Error("NETWORK_DISCONNECTED");
-            }
             if (err.name === 'SyntaxError') throw new Error("Lỗi đọc dữ liệu từ máy chủ.");
             throw err;
         }
@@ -291,7 +287,6 @@ function forceParseJSON(rawText) {
 }
 
 async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName) {
-    if (!navigator.onLine) throw new Error("NETWORK_DISCONNECTED");
     addLog(`🧠 Đang gọi AI [${model}]...`);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const payload = {
@@ -312,7 +307,6 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
         for (let i = 1; i <= maxRetries; i++) {
             try { return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName); }
             catch (err) {
-                if (err.message === "NETWORK_DISCONNECTED") throw err;
                 if (err.status === 429) { addLog(`⚠️ Lỗi 429: Hết lượt Free. Kích hoạt PAID API...`, "warn"); throw new Error("PAID_API_TRIGGER"); }
                 else if ([503, 529, 500].includes(err.status)) {
                     if (i < maxRetries) { addLog(`⚠️ AI ${modelName} quá tải. Đợi 10s...`, "warn"); await new Promise(r => setTimeout(r, 10000)); }
@@ -323,12 +317,11 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
     }
     try { return await tryModelWithRetries(targetModel, 3); } 
     catch (e1) {
-        if (e1.message === "PAID_API_TRIGGER" || e1.message === "NETWORK_DISCONNECTED") throw e1;
+        if (e1.message === "PAID_API_TRIGGER") throw e1;
         addLog(`🔄 CHUYỂN SANG AI DỰ PHÒNG: ${backupModel}...`, "warn");
         try { return await tryModelWithRetries(backupModel, 3); } 
         catch (e2) { 
-            if (e2.message === "NETWORK_DISCONNECTED") throw e2;
-            addLog(`🚨 Tất cả Free thất bại. Gọi viện trợ PAID API!`, "warn"); throw new Error("PAID_API_TRIGGER"); 
+            addLog(`Dùng PAID API`, "warn"); throw new Error("PAID_API_TRIGGER"); 
         }
     }
 }
@@ -420,8 +413,6 @@ btnGrade.addEventListener('click', async () => {
     let isForceAdmin = (adminModelContainer.style.display === "block") ? forcePaidCheck.checked : false;
 
     try {
-        if (!navigator.onLine) throw new Error("NETWORK_DISCONNECTED");
-        
         // Nén Audio trước khi nạp
         let finalFileBlob = file;
         try { finalFileBlob = await compressAudio(file); } 
@@ -494,13 +485,9 @@ btnGrade.addEventListener('click', async () => {
         fetchQuota(); 
         studentName.value = ""; studentId.value = ""; audioFile.value = "";
     } catch(err) {
-        if (err.message === "NETWORK_DISCONNECTED") {
-            addLog(`⚠️ Lỗi mạng máy tính của bạn bị ngắt. Vui lòng kiểm tra Wifi và làm lại!`, "error");
-        } else {
-            addLog(`❌ LỖI: ${err.message}`, "error");
-        }
+        addLog(`❌ LỖI: ${err.message}`, "error");
     } finally {
-        isProcessingTask = false; 
+        isProcessingTask = false;
         btnGrade.disabled = false;
         btnGrade.innerText = "START GRADING & EXPORT";
     }
