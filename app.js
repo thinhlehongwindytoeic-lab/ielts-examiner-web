@@ -144,13 +144,13 @@ btnLogin.addEventListener('click', () => {
 
 headerTitle.addEventListener('click', () => {
     loginName.value = currentName; loginEmailInput.value = currentEmail;
-    mainApp.style.display = "none"; loginScreen.style.display = "flex";
+    mainApp.style.display = "none"; loginScreen.style.display = "block";
 });
 
-// Sự kiện bấm nút Đăng Xuất
+// Sự kiện bấm nút Sign out
 btnLogout.addEventListener('click', () => {
     loginName.value = currentName; loginEmailInput.value = currentEmail;
-    mainApp.style.display = "none"; loginScreen.style.display = "flex";
+    mainApp.style.display = "none"; loginScreen.style.display = "block";
 });
 
 function checkVIP() {
