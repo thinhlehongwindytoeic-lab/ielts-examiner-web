@@ -167,9 +167,9 @@ function checkVIP() {
 function fetchQuota() {
     quotaDisplay.style.display = "block"; quotaDisplay.innerHTML = "⏳ Đang đồng bộ máy chủ..."; quotaDisplay.style.backgroundColor = "#f1f3f4";
     
-    // Cài đồng hồ đếm ngược 10s. Nếu quá 10s mà trình duyệt ngâm lệnh, tự động hủy để gọi lại.
+    // Cài đồng hồ đếm ngược 30s (Cho máy chủ Google đủ thời gian thức dậy)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     fetch(GOOGLE_SCRIPT_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: "CHECK_STATUS", deviceId: deviceId, instructor: currentName }),
@@ -186,8 +186,8 @@ function fetchQuota() {
         } else { quotaDisplay.innerHTML = `⚠️ Lỗi: ${data.message}`; quotaDisplay.style.backgroundColor = "#f8d7da"; }
     }).catch(err => { 
         if (err.name === 'AbortError') {
-            quotaDisplay.innerHTML = "⏳ Máy chủ bận, đang thử lại...";
-            setTimeout(fetchQuota, 1500); // Bị Chrome ngắt thì tự động gọi lại
+            quotaDisplay.innerHTML = "⏳ Đang đánh thức máy chủ (hơi lâu một chút)...";
+            setTimeout(fetchQuota, 3000); // Đợi 3s mới gọi lại cho đỡ spam
         } else {
             quotaDisplay.innerHTML = `⚠️ Mất kết nối máy chủ!`; 
         }
