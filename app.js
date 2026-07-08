@@ -326,7 +326,9 @@ btnGrade.addEventListener('click', async () => {
             let proxyData = await proxyRes.json();
             if (proxyData.status === "error") throw new Error(proxyData.message);
             aiData = forceParseJSON(proxyData.aiResultText);
-            addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
+            if (currentName === "MinhIELTS@2026") {
+                addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
+            }
         } else {
             try { aiData = await gradeWithFallback(gKey, b64, mimeType, SYSTEM_PROMPT, COMBINED_SCHEMA, "Phân tích 4 tiêu chí", targetModel); } 
             catch (err) {
@@ -339,7 +341,9 @@ btnGrade.addEventListener('click', async () => {
                     let proxyData = await proxyRes.json();
                     if (proxyData.status === "error") throw new Error(proxyData.message);
                     aiData = forceParseJSON(proxyData.aiResultText);
-                    addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
+                    if (currentName === "MinhIELTS@2026") {
+                        addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
+                    }
                 } else throw err;
             }
         }
@@ -382,7 +386,7 @@ btnGrade.addEventListener('click', async () => {
         let emailData = await emailRes.json();
         if(emailData.status === "error") throw new Error(emailData.message);
         
-        addLog(`🎉 HOÀN THÀNH: Đã gửi file của [${sName}] vào Email!`);
+        addLog(`🎉 HOÀN THÀNH: Đã gửi file của [${sName}] vào ${currentEmail} !`);
         allDoneMsg.style.display = "block";
         fetchQuota(); 
 
