@@ -208,7 +208,72 @@ btnResetLimit.addEventListener('click', () => {
     }).catch(err => { btnResetLimit.innerText = "🔄 Reset"; addLog("Mất kết nối", "error"); });
 });
 
-// ====== LÕI XỬ LÝ AI ======
+// ====== LÕI XỬ LÝ AI & GIAO TIẾP SERVER ======
+
+// 1. Cỗ máy gõ cửa Google: Bắt đúng bệnh Nghẽn mạch và tự lùi thời gian gõ lại
+async function safeFetchWithRetry(payload, maxRetries = 5) {
+    let delay = 1000;
+    for (let i = 1; i <= maxRetries; i++) {
+        if (!navigator.onLine) throw new Error("NETWORK_DISCONNECTED");
+        try {
+            let res = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            let text = await res.text();
+            
+            // BẮT ĐÚNG BỆNH NGHẼN CỦA GOOGLE APPS SCRIPT
+            if (res.status === 429 || res.status === 500 || text.includes("simultaneous invocations") || text.includes("concurrent executions") || (text.includes("<!DOCTYPE") && text.includes("Error"))) {
+                if (i < maxRetries) {
+                    addLog(`⏳ Server Google đang quá tải. Lùi lại ${delay/1000}s gõ cửa tiếp (Lần ${i}/${maxRetries})...`, "warn");
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2; // Lùi cấp số nhân (1s, 2s, 4s, 8s) để chen hàng an toàn
+                    continue;
+                } else throw new Error("Máy chủ Google kẹt cứng, vui lòng chấm lại sau vài phút!");
+            }
+            return JSON.parse(text); // An toàn lọt qua cửa
+        } catch (err) {
+            if (err.message === "NETWORK_DISCONNECTED" || err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+                throw new Error("NETWORK_DISCONNECTED");
+            }
+            if (err.name === 'SyntaxError') throw new Error("Lỗi đọc dữ liệu từ máy chủ.");
+            throw err;
+        }
+    }
+}
+
+// 2. Máy Ép Audio: Tự động hạ tần số lấy mẫu xuống 16kHz Mono (Giọng nét, dung lượng siêu nhẹ)
+async function compressAudio(file) {
+    addLog(`⏳ Đang nén tự động để tối ưu đường truyền...`, "info");
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    const offlineContext = new OfflineAudioContext(1, audioBuffer.duration * 16000, 16000);
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start(0);
+    const renderedBuffer = await offlineContext.startRendering();
+    
+    const length = renderedBuffer.length * 2;
+    const view = new DataView(new ArrayBuffer(44 + length));
+    const writeString = (v, o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    
+    writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + length, true); writeString(view, 8, 'WAVE'); writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, 16000, true);
+    view.setUint32(28, 16000 * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); writeString(view, 36, 'data'); view.setUint32(40, length, true);
+    
+    const channelData = renderedBuffer.getChannelData(0);
+    let offset = 44;
+    for (let i = 0; i < renderedBuffer.length; i++) {
+        let s = Math.max(-1, Math.min(1, channelData[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+    }
+    return new Blob([view], { type: 'audio/wav' });
+}
+
 function forceParseJSON(rawText) {
     let cleaned = rawText.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
     cleaned = cleaned.replace(/[\u0000-\u001F]+/g, " "); cleaned = cleaned.replace(/[“”]/g, '"');
@@ -226,6 +291,7 @@ function forceParseJSON(rawText) {
 }
 
 async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName) {
+    if (!navigator.onLine) throw new Error("NETWORK_DISCONNECTED");
     addLog(`🧠 Đang gọi AI [${model}]...`);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const payload = {
@@ -246,6 +312,7 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
         for (let i = 1; i <= maxRetries; i++) {
             try { return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName); }
             catch (err) {
+                if (err.message === "NETWORK_DISCONNECTED") throw err;
                 if (err.status === 429) { addLog(`⚠️ Lỗi 429: Hết lượt Free. Kích hoạt PAID API...`, "warn"); throw new Error("PAID_API_TRIGGER"); }
                 else if ([503, 529, 500].includes(err.status)) {
                     if (i < maxRetries) { addLog(`⚠️ AI ${modelName} quá tải. Đợi 10s...`, "warn"); await new Promise(r => setTimeout(r, 10000)); }
@@ -256,31 +323,26 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
     }
     try { return await tryModelWithRetries(targetModel, 3); } 
     catch (e1) {
-        if (e1.message === "PAID_API_TRIGGER") throw e1;
+        if (e1.message === "PAID_API_TRIGGER" || e1.message === "NETWORK_DISCONNECTED") throw e1;
         addLog(`🔄 CHUYỂN SANG AI DỰ PHÒNG: ${backupModel}...`, "warn");
         try { return await tryModelWithRetries(backupModel, 3); } 
-        catch (e2) { addLog(`🚨 Tất cả Free thất bại. Gọi viện trợ PAID API!`, "warn"); throw new Error("PAID_API_TRIGGER"); }
+        catch (e2) { 
+            if (e2.message === "NETWORK_DISCONNECTED") throw e2;
+            addLog(`🚨 Tất cả Free thất bại. Gọi viện trợ PAID API!`, "warn"); throw new Error("PAID_API_TRIGGER"); 
+        }
     }
 }
 
 async function synthesizeAnswersWithSilence(apiKey, qaPairs, did) {
     let proxyData = null;
-    for (let i = 1; i <= 3; i++) {
-        try {
-            addLog(`🎵 [Lần ${i}/3] Đang gửi qua Server tạo Audio...`);
-            let proxyRes = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: "PROXY_DEEPGRAM", deviceId: did, deepgramKey: apiKey, textArray: qaPairs })
-            });
-            let rawText = await proxyRes.text();
-            proxyData = JSON.parse(rawText);
-            if (proxyData.status === "error") throw new Error(proxyData.message);
-            break; 
-        } catch(err) {
-            if (i < 3) { addLog(`⚠️ Máy chủ Audio kẹt. Đợi 5s...`, "warn"); await new Promise(r => setTimeout(r, 5000)); }
-            else throw new Error("DEEPGRAM_FAILED");
-        }
+    try {
+        addLog(`🎵 Đang gửi qua Server tạo Audio...`);
+        proxyData = await safeFetchWithRetry({ action: "PROXY_DEEPGRAM", deviceId: did, deepgramKey: apiKey, textArray: qaPairs }, 3);
+        if (proxyData.status === "error") throw new Error(proxyData.message);
+    } catch(err) {
+        throw new Error("DEEPGRAM_FAILED");
     }
+
     addLog(`🎵 Đang ghép nối âm thanh...`);
     let pcmBuffers = [];
     for (let b64 of proxyData.base64Array) {
@@ -324,64 +386,64 @@ function blobToBase64(blob) {
     });
 }
 
+function triggerDownloadDocx(base64Data, fileName) {
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], {type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName + ".docx";
+    link.click();
+}
+
 // BẤM NÚT START
 btnGrade.addEventListener('click', async () => {
-    let gKey = gmInput.value.trim();
-    let dKey = dgInput.value.trim();
-    let sName = studentName.value.trim();
-    let sId = studentId.value.trim();
+    let gKey = gmInput.value.trim(); let dKey = dgInput.value.trim();
+    let sName = studentName.value.trim(); let sId = studentId.value.trim();
     let file = audioFile.files[0];
     
     if(!gKey || !sName || !sId || !file) { alert("Vui lòng điền đủ Tên, ID, File Audio và Gemini Key!"); return; }
     if(includeAudioChk.checked && !dKey) { alert("Vui lòng nhập Deepgram Key để tạo Audio!"); return; }
 
-    // Tự động lưu học viên vào danh bạ
-    studentsDB[sName] = sId;
-    localStorage.setItem('studentsDB', JSON.stringify(studentsDB));
-    updateStudentDropdown();
-    btnDelStudent.style.display = "none"; // Ẩn thùng rác đi cho gọn
+    studentsDB[sName] = sId; localStorage.setItem('studentsDB', JSON.stringify(studentsDB));
+    updateStudentDropdown(); btnDelStudent.style.display = "none"; 
 
-    btnGrade.disabled = true;
-    btnGrade.innerText = "ĐANG XỬ LÝ...";
+    btnGrade.disabled = true; btnGrade.innerText = "ĐANG XỬ LÝ...";
     allDoneMsg.style.display = "none";
-    isProcessingTask = true; // Bật khiên bảo vệ
+    allDoneMsg.innerHTML = "✅ ĐÃ GỬI XONG! KIỂM TRA EMAIL CỦA BẠN."; // Reset lại nội dung
+    isProcessingTask = true; 
     addLog(`\n--- BẮT ĐẦU CHẤM BÀI: ${sName} ---`);
 
     let targetModel = (adminModelContainer.style.display === "block") ? adminModelSelect.value : "gemini-3.5-flash";
     let isForceAdmin = (adminModelContainer.style.display === "block") ? forcePaidCheck.checked : false;
 
     try {
-        let mimeType = file.type || 'audio/mpeg';
-        let b64 = await blobToBase64(file);
+        if (!navigator.onLine) throw new Error("NETWORK_DISCONNECTED");
+        
+        // Nén Audio trước khi nạp
+        let finalFileBlob = file;
+        try { finalFileBlob = await compressAudio(file); } 
+        catch(err) { addLog(`⚠️ Nén Audio thất bại, sử dụng file gốc...`, "warn"); }
+        
+        let mimeType = 'audio/wav'; 
+        let b64 = await blobToBase64(finalFileBlob);
         
         let aiData;
         if (isForceAdmin) {
             addLog(`👑 VIP: Đang gọi trực tiếp PAID API qua Server...`);
-            let proxyRes = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA, targetModel: targetModel, isForceAdmin: true })
-            });
-            let proxyData = await proxyRes.json();
-            if (proxyData.status === "error") throw new Error(proxyData.message);
+            let proxyData = await safeFetchWithRetry({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA, targetModel: targetModel, isForceAdmin: true });
             aiData = forceParseJSON(proxyData.aiResultText);
-            if (currentName === "MinhIELTS@2026") {
-                addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
-            }
+            if (currentName === "MinhIELTS@2026") addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
         } else {
             try { aiData = await gradeWithFallback(gKey, b64, mimeType, SYSTEM_PROMPT, COMBINED_SCHEMA, "Phân tích 4 tiêu chí", targetModel); } 
             catch (err) {
                 if (err.message === "PAID_API_TRIGGER") {
                     addLog(`🚨 Đang gọi viện trợ PAID API qua Server...`);
-                    let proxyRes = await fetch(GOOGLE_SCRIPT_URL, {
-                        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA })
-                    });
-                    let proxyData = await proxyRes.json();
-                    if (proxyData.status === "error") throw new Error(proxyData.message);
+                    let proxyData = await safeFetchWithRetry({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA });
                     aiData = forceParseJSON(proxyData.aiResultText);
-                    if (currentName === "MinhIELTS@2026") {
-                        addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
-                    }
+                    if (currentName === "MinhIELTS@2026") addLog(`💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
                 } else throw err;
             }
         }
@@ -417,26 +479,33 @@ btnGrade.addEventListener('click', async () => {
         }
 
         addLog(`📧 Đang tạo File và gửi Email cho giáo viên...`);
-        let emailRes = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: "EXPORT_AND_EMAIL", name: sName, id: sId, text: finalText, deviceId: deviceId, instructor: currentName, email: currentEmail, audioBase64_final: finalAudioB64 })
-        });
-        let emailData = await emailRes.json();
-        if(emailData.status === "error") throw new Error(emailData.message);
+        let emailData = await safeFetchWithRetry({ action: "EXPORT_AND_EMAIL", name: sName, id: sId, text: finalText, deviceId: deviceId, instructor: currentName, email: currentEmail, audioBase64_final: finalAudioB64 }, 3);
         
         addLog(`🎉 HOÀN THÀNH: Đã gửi file của [${sName}] vào ${currentEmail} !`);
+        
+        // TẠO NÚT TẢI VỀ TRỰC TIẾP
+        allDoneMsg.innerHTML = `✅ ĐÃ GỬI XONG! KIỂM TRA EMAIL CỦA BẠN.<br><button id="btnDownloadDirect" style="margin-top: 10px; width: auto; background-color: #28a745; border-radius: 6px; padding: 8px 20px; font-size: 14px;">📥 TẢI XUỐNG BÁO CÁO MẪU</button>`;
         allDoneMsg.style.display = "block";
-        fetchQuota(); 
+        document.getElementById('btnDownloadDirect').addEventListener('click', () => {
+            const dateStr = new Date().toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'}).replace('/', '.');
+            triggerDownloadDocx(emailData.fileBase64, `${sName} ${dateStr} IELTS Speaking Assessment`);
+        });
 
+        fetchQuota(); 
         studentName.value = ""; studentId.value = ""; audioFile.value = "";
     } catch(err) {
-        addLog(`❌ LỖI: ${err.message}`, "error");
+        if (err.message === "NETWORK_DISCONNECTED") {
+            addLog(`⚠️ Lỗi mạng máy tính của bạn bị ngắt. Vui lòng kiểm tra Wifi và làm lại!`, "error");
+        } else {
+            addLog(`❌ LỖI: ${err.message}`, "error");
+        }
     } finally {
-        isProcessingTask = false; // Tắt khiên bảo vệ
+        isProcessingTask = false; 
         btnGrade.disabled = false;
         btnGrade.innerText = "START GRADING & EXPORT";
     }
 });
+
 // ====== XỬ LÝ LƯU & XÓA HỌC VIÊN ======
 function updateStudentDropdown() {
     const dataList = document.getElementById('studentList');
@@ -468,3 +537,4 @@ btnDelStudent.addEventListener('click', () => {
         btnDelStudent.style.display = "none";
     }
 });
+
