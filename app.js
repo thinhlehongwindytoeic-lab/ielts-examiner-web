@@ -208,38 +208,17 @@ btnResetLimit.addEventListener('click', () => {
     }).catch(err => { btnResetLimit.innerText = "🔄 Reset"; addLog("Mất kết nối", "error"); });
 });
 
-// ====== LÕI XỬ LÝ AI & GIAO TIẾP SERVER ======
-
-// 1. Cỗ máy gõ cửa Google: Bắt đúng bệnh Nghẽn mạch và tự lùi thời gian gõ lại
+// 1. Giao tiếp Server: Nếu kẹt báo lỗi ngay, không giam lỏng
 async function safeFetchWithRetry(payload, maxRetries = 5) {
-    let delay = 1000;
-    for (let i = 1; i <= maxRetries; i++) {
-        try {
-            let res = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-            let text = await res.text();
-            
-            // BẮT ĐÚNG BỆNH NGHẼN CỦA GOOGLE APPS SCRIPT
-            if (res.status === 429 || res.status === 500 || text.includes("simultaneous invocations") || text.includes("concurrent executions") || (text.includes("<!DOCTYPE") && text.includes("Error"))) {
-                if (i < maxRetries) {
-                    addLog(`⏳ Server Google đang quá tải. Lùi lại ${delay/1000}s gõ cửa tiếp (Lần ${i}/${maxRetries})...`, "warn");
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2; 
-                    continue;
-                } else throw new Error("Máy chủ Google kẹt cứng, vui lòng chấm lại sau vài phút!");
-            }
-            return JSON.parse(text); 
-        } catch (err) {
-            if (i < maxRetries) {
-                addLog(`⏳ Lỗi đường truyền, đang thử kết nối lại (Lần ${i}/${maxRetries})...`, "warn");
-                await new Promise(r => setTimeout(r, delay));
-                delay *= 2;
-                continue;
-            }
-            throw new Error("Không thể kết nối đến Máy chủ.");
-        }
+    let res = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+    });
+    let text = await res.text();
+    try {
+        return JSON.parse(text); 
+    } catch (err) {
+        throw new Error("Máy chủ hiện đang có quá nhiều người truy cập cùng lúc. Vui lòng bấm thử lại!");
     }
 }
 
@@ -426,12 +405,18 @@ btnGrade.addEventListener('click', async () => {
     let isForceAdmin = (adminModelContainer.style.display === "block") ? forcePaidCheck.checked : false;
 
     try {
-        // Nén Audio trước khi nạp
+        // Chỉ nén nếu Audio > 10MB (Tiết kiệm thời gian xử lý)
         let finalFileBlob = file;
-        try { finalFileBlob = await compressAudio(file); } 
-        catch(err) { addLog(`⚠️ Nén Audio thất bại, sử dụng file gốc...`, "warn"); }
+        if (file.size > 10 * 1024 * 1024) {
+            try { 
+                finalFileBlob = await compressAudio(file); 
+                addLog(`✅ Đã nén Audio (Dung lượng > 10MB) để truyền đi nhanh hơn.`, "info");
+            } catch(err) { 
+                addLog(`⚠️ Nén Audio thất bại, sử dụng file gốc...`, "warn"); 
+            }
+        }
         
-        let mimeType = 'audio/wav'; 
+        let mimeType = 'audio/wav';
         let b64 = await blobToBase64(finalFileBlob);
         
         let aiData;
