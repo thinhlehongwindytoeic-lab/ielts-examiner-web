@@ -19,7 +19,7 @@ PHẦN 2: HƯỚNG DẪN CHỈNH SỬA CHI TIẾT TỪNG CÂU HỎI
 Trích xuất và sửa lỗi chi tiết từng câu hỏi:
 - CÂU HỎI: Ghi lại câu hỏi.
 - CÂU TRẢ LỜI GỐC: Ghi lại câu trả lời gốc. TUYỆT ĐỐI BẮT BUỘC đặt từ sai trong ~~ ~~ và từ sửa lại trong ** ** NGAY CẠNH NHAU (Ví dụ: "I ~~goes~~ **go** to school"). Nếu thừa từ thì chỉ gạch bỏ.
-- GIẢI THÍCH: Giải thích chi tiết bằng tiếng Việt lý do tại sao lại sửa như vậy (lỗi gì). Mỗi ý giải thích phải xuống dòng rõ ràng, KHÔNG dùng bất kỳ ký tự liệt kê nào ở đầu.
+- GIẢI THÍCH: BẮT BUỘC ghi kèm mốc thời gian (phút:giây) xảy ra lỗi đó ở ngay đầu. Sau đó giải thích chi tiết bằng tiếng Việt lý do tại sao sai. Mỗi ý giải thích phải xuống dòng rõ ràng, KHÔNG dùng ký tự liệt kê ở đầu.
 - CÂU GỢI Ý (UPGRADED): Viết lại một phiên bản câu trả lời hoàn chỉnh. Tôn trọng ý tưởng gốc. Sử dụng từ vựng đơn giản, tự nhiên. TUYỆT ĐỐI KHÔNG sử dụng từ vựng quá học thuật. (LƯU Ý QUAN TRỌNG: KHÔNG Bọc câu trong dấu ngoặc kép. BẮT BUỘC trả về JSON chuẩn, không tự ý xuống dòng).
 
 PHẦN 3: LỘ TRÌNH/KẾ HOẠCH HỌC TẬP CÁ NHÂN HÓA
