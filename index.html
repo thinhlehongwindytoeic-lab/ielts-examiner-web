@@ -53,29 +53,34 @@
 </head>
 <body>
    <div class="container">
-        <!-- HỘP HƯỚNG DẪN (MODAL) -->
-        <div id="helpBox" style="display: none; background: #e8f0fe; border-left: 4px solid #1a73e8; padding: 15px; font-size: 14px; margin-bottom: 20px; border-radius: 6px; color: #333; line-height: 1.6;">
-            <strong>Hướng dẫn lấy API Key (Hoàn toàn miễn phí):</strong><br>
-            1. Lấy Gemini API Key tại: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #1a73e8; text-decoration: none; font-weight: bold;">Google AI Studio</a><br>
-            2. Lấy Deepgram API Key tại: <a href="https://console.deepgram.com/" target="_blank" style="color: #1a73e8; text-decoration: none; font-weight: bold;">Deepgram Console</a>
-        </div>
-
         <!-- MÀN HÌNH ĐĂNG NHẬP -->
         <div id="loginScreen">
-            <h2>ĐĂNG NHẬP HỆ THỐNG <span class="btn-help" title="Hướng dẫn lấy API Key" style="background: #fbbc05; color: white; border-radius: 50%; display: inline-flex; width: 26px; height: 26px; font-size: 16px; align-items: center; justify-content: center; cursor: pointer; vertical-align: middle; margin-left: 5px; font-family: sans-serif; font-weight: bold;">?</span></h2>
+            <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
             <div class="hint-text">Vui lòng nhập thông tin để hệ thống gửi kết quả về đúng Email của bạn.</div>
             <input type="text" id="loginName" placeholder="Tên Giáo Viên">
             <input type="email" id="loginEmail" placeholder="Email nhận kết quả">
             <button id="btnLogin">BẮT ĐẦU LÀM VIỆC</button>
         </div>
 
-        <!-- MÀN HÌNH CHÍNH (APP) -->
+       <!-- MÀN HÌNH CHÍNH (APP) -->
         <div id="mainApp" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h2 id="headerTitle" title="Bấm để đổi tài khoản" style="margin-bottom: 0; font-size: 22px; text-align: left;">🎯 IELTS EXAMINER PRO <span class="btn-help" title="Hướng dẫn lấy API Key" style="background: #fbbc05; color: white; border-radius: 50%; display: inline-flex; width: 24px; height: 24px; font-size: 15px; align-items: center; justify-content: center; cursor: pointer; vertical-align: middle; margin-left: 5px; font-family: sans-serif; font-weight: bold;">?</span></h2>
+                <h2 id="headerTitle" title="Bấm để đổi tài khoản" style="margin-bottom: 0; font-size: 22px; text-align: left;">🎯 IELTS EXAMINER PRO</h2>
                 <button id="btnLogout" style="width: auto; padding: 8px 12px; margin: 0; font-size: 13px; background-color: #dc3545; border-radius: 6px;" title="Đổi tài khoản / Email">Sign out</button>
             </div>
             
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="font-size: 14px; color: #333;">CẤU HÌNH API KEYS:</strong>
+                <span class="btn-help" title="Hướng dẫn lấy API Key" style="background: #fbbc05; color: white; border-radius: 50%; display: inline-flex; width: 22px; height: 22px; font-size: 14px; align-items: center; justify-content: center; cursor: pointer; font-family: sans-serif; font-weight: bold;">?</span>
+            </div>
+            
+            <!-- HỘP HƯỚNG DẪN (MODAL) -->
+            <div id="helpBox" style="display: none; background: #e8f0fe; border-left: 4px solid #1a73e8; padding: 15px; font-size: 14px; margin-bottom: 15px; border-radius: 6px; color: #333; line-height: 1.6;">
+                <strong>Hướng dẫn lấy API Key (Hoàn toàn miễn phí):</strong><br>
+                1. Lấy Gemini API Key tại: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #1a73e8; text-decoration: none; font-weight: bold;">Google AI Studio</a><br>
+                2. Lấy Deepgram API Key tại: <a href="https://console.deepgram.com/" target="_blank" style="color: #1a73e8; text-decoration: none; font-weight: bold;">Deepgram Console</a>
+            </div>
+
             <input type="password" id="geminiKey" placeholder="Gemini API Key">
             <input type="password" id="deepgramKey" placeholder="Deepgram API Key">
             
