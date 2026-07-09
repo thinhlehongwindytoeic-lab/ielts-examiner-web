@@ -131,15 +131,49 @@ dgInput.addEventListener('input', () => localStorage.setItem('deepgramKey', dgIn
 adminModelSelect.addEventListener('change', () => localStorage.setItem('savedAdminModel', adminModelSelect.value));
 includeAudioChk.addEventListener('change', () => localStorage.setItem('audioChecked', includeAudioChk.checked));
 
-btnLogin.addEventListener('click', () => {
+btnLogin.addEventListener('click', async () => {
     let n = loginName.value.trim();
     let e = loginEmailInput.value.trim();
     if(!n || !e) { alert("Vui lòng nhập đủ Tên và Email!"); return; }
-    localStorage.setItem('instructorName', n); localStorage.setItem('instructorEmail', e);
-    currentName = n; currentEmail = e;
-    loginScreen.style.display = "none";
-    mainApp.style.display = "block";
-    fetchQuota();
+    
+    // Giao diện: Khóa nút, hiện chữ loading
+    let ogText = btnLogin.innerText;
+    btnLogin.innerText = "⏳ ĐANG KIỂM TRA QUYỀN TRUY CẬP...";
+    btnLogin.disabled = true;
+    document.getElementById('loginError').style.display = "none";
+
+    try {
+        // GỌI HỎI SERVER XEM EMAIL CÓ ĐƯỢC CẤP PHÉP KHÔNG
+        let res = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: "VERIFY_LOGIN", instructor: n, email: e, deviceId: deviceId })
+        });
+        let data = await res.json();
+        
+        if (data.status === "success") {
+            // SERVER GẬT ĐẦU -> CHO VÀO
+            localStorage.setItem('instructorName', n); localStorage.setItem('instructorEmail', e);
+            currentName = n; currentEmail = e;
+            loginScreen.style.display = "none";
+            mainApp.style.display = "block";
+            
+            // Nếu là Admin, nạp danh sách email từ Server vào ô Textarea
+            if (data.isVIP) {
+                document.getElementById('adminEmailList').value = data.emailList;
+            }
+            fetchQuota();
+        } else {
+            // SERVER LẮC ĐẦU -> BÁO LỖI ĐỎ CHÓT, TỪ CHỐI
+            document.getElementById('loginError').innerText = data.message;
+            document.getElementById('loginError').style.display = "block";
+        }
+    } catch (err) {
+        document.getElementById('loginError').innerText = "⚠️ Không thể kết nối máy chủ, vui lòng thử lại!";
+        document.getElementById('loginError').style.display = "block";
+    } finally {
+        btnLogin.innerText = ogText;
+        btnLogin.disabled = false;
+    }
 });
 
 headerTitle.addEventListener('click', () => {
@@ -560,3 +594,33 @@ document.querySelectorAll('.btn-help').forEach(btn => {
         helpBox.style.display = helpBox.style.display === 'none' ? 'block' : 'none';
     });
 });
+// ===== CHỨC NĂNG LƯU DANH SÁCH EMAIL CỦA ADMIN =====
+const btnSaveEmails = document.getElementById('btnSaveEmails');
+if (btnSaveEmails) {
+    btnSaveEmails.addEventListener('click', async () => {
+        let newList = document.getElementById('adminEmailList').value.trim();
+        if (!newList) { alert("Danh sách không được để trống!"); return; }
+        
+        btnSaveEmails.innerText = "⏳ ĐANG LƯU...";
+        btnSaveEmails.disabled = true;
+        
+        try {
+            let res = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: "UPDATE_EMAIL_LIST", instructor: currentName, email: currentEmail, deviceId: deviceId, newList: newList })
+            });
+            let data = await res.json();
+            
+            if (data.status === "success") {
+                alert(data.message); // Báo thành công
+            } else {
+                alert("Lỗi: " + data.message); // Hacker bị báo lỗi ở đây
+            }
+        } catch (err) {
+            alert("Lỗi kết nối máy chủ!");
+        } finally {
+            btnSaveEmails.innerText = "💾 LƯU DANH SÁCH EMAIL";
+            btnSaveEmails.disabled = false;
+        }
+    });
+}
