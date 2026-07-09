@@ -73,11 +73,11 @@ const allDoneMsg = document.getElementById('allDoneMsg');
 let currentName = "";
 let currentEmail = "";
 let deviceId = "";
-let isProcessingTask = false; // Biến chặn tắt trang
+let activeTasksCount = 0; // Đếm số bài đang chạy ngầm
 
-// Khiên bảo vệ: Cảnh báo khi người dùng cố tắt trình duyệt lúc đang chấm bài
+// Khiên bảo vệ: Cảnh báo nếu đang có bài chạy ngầm (activeTasksCount > 0)
 window.addEventListener('beforeunload', function (e) {
-    if (isProcessingTask) {
+    if (activeTasksCount > 0) {
         e.preventDefault();
         e.returnValue = ''; 
     }
@@ -270,8 +270,8 @@ function forceParseJSON(rawText) {
     }
 }
 
-async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName) {
-    addLog(`🧠 Đang gọi AI [${model}]...`);
+async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName) {
+    addLog(`[${sName}] 🧠 Đang gọi AI [${model}]...`);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const payload = {
         system_instruction: { parts: [{ text: systemPromptConfig }] },
@@ -285,15 +285,15 @@ async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptC
     return forceParseJSON(data.candidates[0].content.parts[0].text);
 }
 
-async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, targetModel) {
+async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, targetModel, sName) {
     let backupModel = (targetModel === "gemini-3.5-flash") ? "gemini-3-flash-preview" : "gemini-3.5-flash";
     async function tryModelWithRetries(modelName, maxRetries) {
         for (let i = 1; i <= maxRetries; i++) {
-            try { return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName); }
+            try { return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName); }
             catch (err) {
-                if (err.status === 429) { addLog(`⚠️ Lỗi 429: Hết lượt Free. Kích hoạt PAID API...`, "warn"); throw new Error("PAID_API_TRIGGER"); }
+                if (err.status === 429) { addLog(`[${sName}] ⚠️ Lỗi 429: Hết lượt Free. Kích hoạt PAID API...`, "warn"); throw new Error("PAID_API_TRIGGER"); }
                 else if ([503, 529, 500].includes(err.status)) {
-                    if (i < maxRetries) { addLog(`⚠️ AI ${modelName} quá tải. Đợi 10s...`, "warn"); await new Promise(r => setTimeout(r, 10000)); }
+                    if (i < maxRetries) { addLog(`[${sName}] ⚠️ AI ${modelName} quá tải. Đợi 10s...`, "warn"); await new Promise(r => setTimeout(r, 10000)); }
                     else throw err;
                 } else throw err;
             }
@@ -302,33 +302,33 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
     try { return await tryModelWithRetries(targetModel, 3); } 
     catch (e1) {
         if (e1.message === "PAID_API_TRIGGER") throw e1;
-        addLog(`🔄 CHUYỂN SANG AI DỰ PHÒNG: ${backupModel}...`, "warn");
+        addLog(`[${sName}] 🔄 CHUYỂN SANG AI DỰ PHÒNG: ${backupModel}...`, "warn");
         try { return await tryModelWithRetries(backupModel, 3); } 
         catch (e2) { 
-            addLog(`Dùng PAID API`, "warn"); throw new Error("PAID_API_TRIGGER"); 
+            addLog(`[${sName}] 🚨 Tất cả Free thất bại. Gọi viện trợ PAID API!`, "warn"); throw new Error("PAID_API_TRIGGER"); 
         }
     }
 }
 
-async function synthesizeAnswersWithSilence(apiKey, qaPairs, did) {
+async function synthesizeAnswersWithSilence(apiKey, qaPairs, did, sName) {
     let proxyData = null;
     for (let i = 1; i <= 3; i++) {
         try {
-            addLog(`🎵 [Lần ${i}/3] Đang gửi qua Server tạo Audio...`);
+            addLog(`[${sName}] 🎵 [Lần ${i}/3] Đang gửi qua Server tạo Audio...`);
             proxyData = await safeFetchWithRetry({ action: "PROXY_DEEPGRAM", deviceId: did, deepgramKey: apiKey, textArray: qaPairs }, 3);
             if (proxyData.status === "error") throw new Error(proxyData.message);
-            break; // Thành công thì thoát vòng lặp
+            break; 
         } catch(err) {
             if (i < 3) {
-                addLog(`⚠️ Lỗi Audio: ${err.message}. Đợi 5s thử lại...`, "warn");
+                addLog(`[${sName}] ⚠️ Lỗi Audio: ${err.message}. Đợi 5s thử lại...`, "warn");
                 await new Promise(r => setTimeout(r, 5000));
             } else {
-                throw new Error(err.message); // Quăng lỗi thật để báo cáo
+                throw new Error(err.message); 
             }
         }
     }
 
-    addLog(`🎵 Đang ghép nối âm thanh...`);
+    addLog(`[${sName}] 🎵 Đang ghép nối âm thanh...`);
     let pcmBuffers = [];
     for (let b64 of proxyData.base64Array) {
         let binStr = atob(b64); let bytes = new Uint8Array(binStr.length);
@@ -344,7 +344,7 @@ async function synthesizeAnswersWithSilence(apiKey, qaPairs, did) {
         if(!pcm && bytes.byteLength>44) pcm = new Uint8Array(bytes.buffer, 44);
         if(pcm) pcmBuffers.push(pcm);
     }
-    let sampleRate=24000; let silenceArray=new Uint8Array(sampleRate*2*2); // 2s silence
+    let sampleRate=24000; let silenceArray=new Uint8Array(sampleRate*2*2); 
     let totalLen=0; pcmBuffers.forEach(p=>totalLen+=p.length);
     if(pcmBuffers.length>1) totalLen += silenceArray.length * (pcmBuffers.length-1);
     
@@ -383,8 +383,142 @@ function triggerDownloadDocx(base64Data, fileName) {
     link.click();
 }
 
-// BẤM NÚT START
+// BẤM NÚT START (Chạy Đa Luồng Ngầm)
 btnGrade.addEventListener('click', async () => {
+    let gKey = gmInput.value.trim(); let dKey = dgInput.value.trim();
+    let sName = studentName.value.trim(); let sId = studentId.value.trim();
+    let file = audioFile.files[0];
+    
+    if(!gKey || !sName || !sId || !file) { alert("Vui lòng điền đủ Tên, ID, File Audio và Gemini Key!"); return; }
+    if(includeAudioChk.checked && !dKey) { alert("Vui lòng nhập Deepgram Key để tạo Audio!"); return; }
+
+    studentsDB[sName] = sId; localStorage.setItem('studentsDB', JSON.stringify(studentsDB));
+    updateStudentDropdown(); btnDelStudent.style.display = "none"; 
+
+    // NẾU BẮT ĐẦU 1 LƯỢT CHẤM MỚI TINH, DỌN SẠCH CÁI HỘP XANH THÔNG BÁO CŨ
+    if (activeTasksCount === 0) {
+        allDoneMsg.style.display = "none";
+        allDoneMsg.innerHTML = ""; 
+    }
+
+    // KHÓA NÚT 1 GIÂY ĐỂ TRÁNH BẤM ĐÚP, RỒI MỞ LẠI NGAY LẬP TỨC
+    btnGrade.disabled = true; 
+    btnGrade.innerText = "ĐANG ĐƯA VÀO HÀNG ĐỢI...";
+    activeTasksCount++; 
+    addLog(`\n--- BẮT ĐẦU CHẤM BÀI: ${sName} ---`);
+
+    let targetModel = (adminModelContainer.style.display === "block") ? adminModelSelect.value : "gemini-3.5-flash";
+    let isForceAdmin = (adminModelContainer.style.display === "block") ? forcePaidCheck.checked : false;
+
+    // Gói ghém dữ liệu riêng rẽ cho Tiến trình này
+    let taskFile = file;
+    let taskIncludeAudio = includeAudioChk.checked;
+    
+    // Mở khóa Form cho giáo viên làm bài tiếp theo (1 giây)
+    setTimeout(() => {
+        studentName.value = ""; studentId.value = ""; audioFile.value = "";
+        btnGrade.disabled = false;
+        btnGrade.innerText = "START GRADING & EXPORT";
+    }, 1000);
+
+    // BẮT ĐẦU CHẠY NGẦM ĐA LUỒNG (Fire & Forget)
+    (async () => {
+        try {
+            let finalFileBlob = taskFile;
+            if (taskFile.size > 10 * 1024 * 1024) {
+                try { 
+                    finalFileBlob = await compressAudio(taskFile); 
+                    addLog(`[${sName}] ✅ Đã nén Audio (Dung lượng > 10MB) để truyền đi nhanh hơn.`, "info");
+                } catch(err) { addLog(`[${sName}] ⚠️ Nén Audio thất bại, sử dụng file gốc...`, "warn"); }
+            }
+            
+            let mimeType = 'audio/wav'; 
+            let b64 = await blobToBase64(finalFileBlob);
+            
+            let aiData;
+            if (isForceAdmin) {
+                addLog(`[${sName}] 👑 VIP: Đang gọi trực tiếp PAID API qua Server...`);
+                let proxyData = await safeFetchWithRetry({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA, targetModel: targetModel, isForceAdmin: true });
+                aiData = forceParseJSON(proxyData.aiResultText);
+                if (currentName === "MinhIELTS@2026") addLog(`[${sName}] 💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
+            } else {
+                try { aiData = await gradeWithFallback(gKey, b64, mimeType, SYSTEM_PROMPT, COMBINED_SCHEMA, "Phân tích 4 tiêu chí", targetModel, sName); } 
+                catch (err) {
+                    if (err.message === "PAID_API_TRIGGER") {
+                        addLog(`[${sName}] 🚨 Đang gọi viện trợ PAID API qua Server...`);
+                        let proxyData = await safeFetchWithRetry({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA });
+                        aiData = forceParseJSON(proxyData.aiResultText);
+                        if (currentName === "MinhIELTS@2026") addLog(`[${sName}] 💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
+                    } else throw err;
+                }
+            }
+            
+            addLog(`[${sName}] ✅ Chấm AI hoàn tất. Đang soạn nội dung...`);
+            let formatS = s => Number.isInteger(s) ? s+'.0' : s.toFixed(1);
+            let textPart1 = `Pronunciation - ${formatS(aiData.pronunciation_score||0)}:\n${aiData.pronunciation_feedback||""}\n\nFluency and Coherence - ${formatS(aiData.fluency_score||0)}:\n${aiData.fluency_feedback||""}\n\nLexical Resource - ${formatS(aiData.lexical_score||0)}:\n${aiData.lexical_feedback||""}\n\nGrammatical Range and Accuracy - ${formatS(aiData.grammar_score||0)}:\n${aiData.grammar_feedback||""}`;
+            
+            let validScores = [aiData.pronunciation_score, aiData.fluency_score, aiData.lexical_score, aiData.grammar_score].filter(s=>s>0);
+            let over = validScores.length > 0 ? Math.floor((validScores.reduce((a,b)=>a+b,0)/validScores.length)*2)/2 : 0;
+            let textOver = `\nOverall: ${over.toFixed(1)}\n\n`;
+            
+            let textPart2 = ""; let qaPairs = [];
+            if(Array.isArray(aiData.qa_corrections)) {
+                textPart2 = aiData.qa_corrections.map((item, i) => {
+                    let q = (item.question || `Question ${i+1}`).replace(/[*_#]/g, '').replace(/^(Question|Câu\shỏi)\s*\d*\s*[:\-]?\s*/i, '').trim();
+                    let o = (item.original_answer || "").replace(/^["'“”]+|["'“”]+$/g, '').trim();
+                    let e = (item.explanation || "").trim();
+                    let u = (item.upgraded_answer || "").replace(/^["'“”]+|["'“”]+$/g, '').trim();
+                    if(q && u) qaPairs.push(`${q}. Answer: ${u}`);
+                    return `**Question ${i+1}: ${q}**\nOriginal Answer: “${o}”\nGiải thích:\n${e}\nGợi ý mở rộng/Cải thiện (Upgraded Simple English): “${u}”`;
+                }).join('\n\n');
+            }
+            let textPart3 = `\n\nPHẦN 3:\n${(aiData.study_plan||"").replace(/(?:\s*->\s*|\s+)-\s*(Pronunciation|Fluency|Lexical|Grammar)/gi, '\n- $1')}`;
+            let finalText = textPart1 + textOver + textPart2 + textPart3;
+
+            let finalAudioB64 = null;
+            if(taskIncludeAudio && qaPairs.length > 0) {
+                try {
+                    let audBlob = await synthesizeAnswersWithSilence(dKey, qaPairs, deviceId, sName);
+                    finalAudioB64 = await blobToBase64(audBlob);
+                } catch(e) { addLog(`[${sName}] ⚠️ Bỏ qua Audio: ${e.message}. Vẫn gửi Word!`, "warn"); }
+            }
+
+            addLog(`[${sName}] 📧 Đang tạo File và gửi Email cho giáo viên...`);
+            let emailData = await safeFetchWithRetry({ action: "EXPORT_AND_EMAIL", name: sName, id: sId, text: finalText, deviceId: deviceId, instructor: currentName, email: currentEmail, audioBase64_final: finalAudioB64 }, 3);
+            
+            addLog(`[${sName}] 🎉 HOÀN THÀNH: Đã gửi file vào ${currentEmail} !`);
+            
+            // XỬ LÝ KHUNG THÔNG BÁO VÀ NÚT TẢI VỀ CỘNG DỒN
+            allDoneMsg.style.display = "block";
+            if (!allDoneMsg.innerHTML.includes("ĐÃ GỬI XONG")) {
+                allDoneMsg.innerHTML = `✅ ĐÃ GỬI XONG! KIỂM TRA EMAIL CỦA BẠN.<br>`;
+            }
+            
+            let btnId = "btnDL_" + Date.now() + "_" + Math.floor(Math.random() * 100);
+            allDoneMsg.innerHTML += `<button id="${btnId}" style="margin-top: 8px; width: 100%; background-color: #28a745; border-radius: 6px; padding: 8px; font-size: 14px;">📥 Tải Báo Cáo Của: ${sName}</button>`;
+            
+            setTimeout(() => {
+                let newBtn = document.getElementById(btnId);
+                if(newBtn) {
+                    newBtn.addEventListener('click', () => {
+                        const dateStr = new Date().toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'}).replace('/', '.');
+                        triggerDownloadDocx(emailData.fileBase64, `${sName} ${dateStr} IELTS Speaking Assessment`);
+                        newBtn.style.display = "none"; // Bấm xong nút tự bốc hơi
+                    });
+                }
+            }, 100);
+
+            fetchQuota(); 
+        } catch(err) {
+            addLog(`[${sName}] ❌ LỖI: ${err.message}`, "error");
+        } finally {
+            activeTasksCount--; // Chạy xong giảm biến đếm
+            if (activeTasksCount === 0) {
+                addLog(`\n🎉 TẤT CẢ CÁC BÀI ĐÃ CHẤM XONG!`);
+            }
+        }
+    })(); // Kết thúc khối chạy ngầm
+});
     let gKey = gmInput.value.trim(); let dKey = dgInput.value.trim();
     let sName = studentName.value.trim(); let sId = studentId.value.trim();
     let file = audioFile.files[0];
