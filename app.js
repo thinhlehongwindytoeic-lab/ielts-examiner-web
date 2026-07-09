@@ -232,8 +232,13 @@ async function safeFetchWithRetry(payload, maxRetries = 5) {
             }
             return JSON.parse(text); 
         } catch (err) {
-            if (err.name === 'SyntaxError') throw new Error("Lỗi đọc dữ liệu từ máy chủ.");
-            throw err;
+            if (i < maxRetries) {
+                addLog(`⏳ Lỗi đường truyền, đang thử kết nối lại (Lần ${i}/${maxRetries})...`, "warn");
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+                continue;
+            }
+            throw new Error("Không thể kết nối đến Máy chủ.");
         }
     }
 }
@@ -328,12 +333,20 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
 
 async function synthesizeAnswersWithSilence(apiKey, qaPairs, did) {
     let proxyData = null;
-    try {
-        addLog(`🎵 Đang gửi qua Server tạo Audio...`);
-        proxyData = await safeFetchWithRetry({ action: "PROXY_DEEPGRAM", deviceId: did, deepgramKey: apiKey, textArray: qaPairs }, 3);
-        if (proxyData.status === "error") throw new Error(proxyData.message);
-    } catch(err) {
-        throw new Error("DEEPGRAM_FAILED");
+    for (let i = 1; i <= 3; i++) {
+        try {
+            addLog(`🎵 [Lần ${i}/3] Đang gửi qua Server tạo Audio...`);
+            proxyData = await safeFetchWithRetry({ action: "PROXY_DEEPGRAM", deviceId: did, deepgramKey: apiKey, textArray: qaPairs }, 3);
+            if (proxyData.status === "error") throw new Error(proxyData.message);
+            break; // Thành công thì thoát vòng lặp
+        } catch(err) {
+            if (i < 3) {
+                addLog(`⚠️ Lỗi Audio: ${err.message}. Đợi 5s thử lại...`, "warn");
+                await new Promise(r => setTimeout(r, 5000));
+            } else {
+                throw new Error(err.message); // Quăng lỗi thật để báo cáo
+            }
+        }
     }
 
     addLog(`🎵 Đang ghép nối âm thanh...`);
@@ -466,7 +479,7 @@ btnGrade.addEventListener('click', async () => {
             try {
                 let audBlob = await synthesizeAnswersWithSilence(dKey, qaPairs, deviceId);
                 finalAudioB64 = await blobToBase64(audBlob);
-            } catch(e) { addLog(`⚠️ Bỏ qua Audio do lỗi mạng. Vẫn gửi Word!`, "warn"); }
+            } catch(e) { addLog(`⚠️ Bỏ qua Audio: ${e.message}. Vẫn gửi Word!`, "warn"); }
         }
 
         addLog(`📧 Đang tạo File và gửi Email cho giáo viên...`);
