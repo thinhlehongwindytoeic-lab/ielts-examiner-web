@@ -523,4 +523,11 @@ btnDelStudent.addEventListener('click', () => {
         btnDelStudent.style.display = "none";
     }
 });
-
+// BẬT/TẮT HỘP HƯỚNG DẪN
+document.querySelectorAll('.btn-help').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const helpBox = document.getElementById('helpBox');
+        helpBox.style.display = helpBox.style.display === 'none' ? 'block' : 'none';
+    });
+});
