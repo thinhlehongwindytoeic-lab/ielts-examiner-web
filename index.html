@@ -57,6 +57,7 @@
         <div id="loginScreen">
             <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
             <div class="hint-text">Vui lòng nhập thông tin để hệ thống gửi kết quả về đúng Email của bạn.</div>
+            <div id="loginError" style="color: #dc3545; font-size: 14px; text-align: center; margin-bottom: 15px; font-weight: bold; display: none; line-height: 1.4;"></div>
             <input type="text" id="loginName" placeholder="Tên Giáo Viên">
             <input type="email" id="loginEmail" placeholder="Email nhận kết quả">
             <button id="btnLogin">BẮT ĐẦU LÀM VIỆC</button>
@@ -97,6 +98,11 @@
                         <input type="checkbox" id="forcePaidCheck" style="cursor: pointer; width: 20px; height: 20px; margin: 0;">
                     </div>
                     <button id="btnResetLimit" style="background: #28a745; width: 100px; padding: 10px; margin: 0;">🔄 Reset</button>
+                </div>
+                <div style="margin-top: 15px; border-top: 1px dashed #fbc02d; padding-top: 15px;">
+                    <strong style="font-size: 13px; color: #d84315;">QUẢN LÝ DANH SÁCH GIÁO VIÊN (Mỗi dòng 1 email)</strong>
+                    <textarea id="adminEmailList" rows="5" style="width: 100%; margin-top: 8px; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 13px; resize: vertical;"></textarea>
+                    <button id="btnSaveEmails" style="background: #007bff; margin-top: 10px; font-size: 14px; padding: 10px;">💾 LƯU DANH SÁCH EMAIL</button>
                 </div>
             </div>
 
