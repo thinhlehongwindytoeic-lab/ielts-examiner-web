@@ -19,7 +19,7 @@ PHẦN 2: HƯỚNG DẪN CHỈNH SỬA CHI TIẾT TỪNG CÂU HỎI
 Trích xuất và sửa lỗi chi tiết từng câu hỏi:
 - CÂU HỎI: Ghi lại câu hỏi.
 - CÂU TRẢ LỜI GỐC: Ghi lại câu trả lời gốc. TUYỆT ĐỐI BẮT BUỘC đặt từ sai trong ~~ ~~ và từ sửa lại trong ** ** NGAY CẠNH NHAU (Ví dụ: "I ~~goes~~ **go** to school"). Nếu thừa từ thì chỉ gạch bỏ.
-- GIẢI THÍCH: Giải thích chi tiết bằng tiếng Việt lý do tại sao lại sửa như vậy (lỗi gì). Giải thích phải dễ hiểu, cụ thể, không nói chung chung. Luôn dùng dấu gạch ngang "-" ở đầu dòng để liệt kê.
+- GIẢI THÍCH: Giải thích chi tiết bằng tiếng Việt lý do tại sao lại sửa như vậy (lỗi gì). Mỗi ý giải thích phải xuống dòng rõ ràng, KHÔNG dùng bất kỳ ký tự liệt kê nào ở đầu.
 - CÂU GỢI Ý (UPGRADED): Viết lại một phiên bản câu trả lời hoàn chỉnh. Tôn trọng ý tưởng gốc. Sử dụng từ vựng đơn giản, tự nhiên. TUYỆT ĐỐI KHÔNG sử dụng từ vựng quá học thuật. (LƯU Ý QUAN TRỌNG: KHÔNG Bọc câu trong dấu ngoặc kép. BẮT BUỘC trả về JSON chuẩn, không tự ý xuống dòng).
 
 PHẦN 3: LỘ TRÌNH/KẾ HOẠCH HỌC TẬP CÁ NHÂN HÓA
@@ -465,7 +465,7 @@ btnGrade.addEventListener('click', async () => {
             textPart2 = aiData.qa_corrections.map((item, i) => {
                 let q = (item.question || `Question ${i+1}`).replace(/[*_#]/g, '').replace(/^(Question|Câu\shỏi)\s*\d*\s*[:\-]?\s*/i, '').trim();
                 let o = (item.original_answer || "").replace(/^["'“”]+|["'“”]+$/g, '').trim();
-                let e = (item.explanation || "").replace(/(?:\s*-\s*)/g, '\n- ').trim();
+                let e = (item.explanation || "").trim();
                 let u = (item.upgraded_answer || "").replace(/^["'“”]+|["'“”]+$/g, '').trim();
                 if(q && u) qaPairs.push(`${q}. Answer: ${u}`);
                 return `**Question ${i+1}: ${q}**\nOriginal Answer: “${o}”\nGiải thích:\n${e}\nGợi ý mở rộng/Cải thiện (Upgraded Simple English): “${u}”`;
@@ -493,9 +493,10 @@ btnGrade.addEventListener('click', async () => {
         document.getElementById('btnDownloadDirect').addEventListener('click', () => {
             const dateStr = new Date().toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'}).replace('/', '.');
             triggerDownloadDocx(emailData.fileBase64, `${sName} ${dateStr} IELTS Speaking Assessment`);
+            allDoneMsg.style.display = "none"; // Ẩn thông báo ngay sau khi bấm tải
         });
 
-        fetchQuota(); 
+        fetchQuota();
         studentName.value = ""; studentId.value = ""; audioFile.value = "";
     } catch(err) {
         addLog(`❌ LỖI: ${err.message}`, "error");
