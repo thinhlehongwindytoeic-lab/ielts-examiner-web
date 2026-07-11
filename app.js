@@ -313,7 +313,13 @@ async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptC
         generationConfig: { temperature: 0.3, responseMimeType: "application/json", responseSchema: responseSchemaConfig }
     };
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!res.ok) { let err = new Error(`Lỗi HTTP ${res.status}`); err.status = res.status; throw err; }
+    if (!res.ok) { 
+        if (res.status === 400 || res.status === 403) {
+            let err = new Error("Gemini Key không chính xác. Vui lòng kiểm tra lại!"); 
+            err.isKeyError = true; throw err;
+        }
+        let err = new Error(`Lỗi HTTP ${res.status}`); err.status = res.status; throw err; 
+    }
     const data = await res.json();
     if (!data.candidates || data.candidates.length === 0) throw new Error("AI trả về rỗng.");
     return forceParseJSON(data.candidates[0].content.parts[0].text);
@@ -325,6 +331,7 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
         for (let i = 1; i <= maxRetries; i++) {
             try { return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName); }
             catch (err) {
+                if (err.isKeyError) throw err; // NGẮT MẠCH: Văng lỗi ngay lập tức
                 if (err.status === 429) { addLog(`[${sName}] ⚠️ Lỗi 429: Hết lượt Free. Kích hoạt PAID API...`, "warn"); throw new Error("PAID_API_TRIGGER"); }
                 else if ([503, 529, 500].includes(err.status)) {
                     if (i < maxRetries) { addLog(`[${sName}] ⚠️ AI ${modelName} quá tải. Đợi 10s...`, "warn"); await new Promise(r => setTimeout(r, 10000)); }
@@ -335,11 +342,13 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
     }
     try { return await tryModelWithRetries(targetModel, 3); } 
     catch (e1) {
+        if (e1.isKeyError) throw e1; // NGẮT MẠCH: Không cho nhảy sang model Dự phòng
         if (e1.message === "PAID_API_TRIGGER") throw e1;
         addLog(`[${sName}] 🔄 CHUYỂN SANG AI DỰ PHÒNG: ${backupModel}...`, "warn");
         try { return await tryModelWithRetries(backupModel, 3); } 
         catch (e2) { 
-            addLog(`[${sName}] 🚨 Tất cả Free thất bại. Gọi viện trợ PAID API!`, "warn"); throw new Error("PAID_API_TRIGGER"); 
+            if (e2.isKeyError) throw e2; // NGẮT MẠCH: Không cho gọi viện trợ Admin
+            addLog(`[${sName}] Tất cả Free thất bại. Gọi PAID API!`, "warn"); throw new Error("PAID_API_TRIGGER"); 
         }
     }
 }
