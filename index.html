@@ -48,39 +48,7 @@
         .log-warn { color: #ffcc00; }
         .vip-box { background: #fff9c4; border: 1px dashed #fbc02d; padding: 15px; margin-bottom: 20px; border-radius: 8px; display: none; }
         
-        #quotaDisplay, #budgetDisplay, #allDoneMsg { font-size: 14px; font-weight: bold; text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
-        
-        /* GIAO DIỆN FLASHCARD (MỚI) */
-        #flashcardApp { display: none; width: 100%; }
-        .fc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-weight: bold; color: #1a73e8; font-size: 16px; border-bottom: 2px solid #e8f0fe; padding-bottom: 10px;}
-        
-        /* Hiệu ứng thẻ lật 3D */
-        .fc-card { perspective: 1000px; width: 100%; height: 260px; margin-bottom: 20px; cursor: pointer; }
-        .fc-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
-        .fc-card.flipped .fc-inner { transform: rotateX(180deg); }
-        .fc-front, .fc-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 12px; padding: 20px; }
-        .fc-front { background: #ffffff; border: 2px solid #e8f0fe; color: #1a73e8; }
-        .fc-back { background: #1a73e8; color: white; transform: rotateX(180deg); box-shadow: inset 0 0 20px rgba(0,0,0,0.1); }
-        
-        .fc-word { font-size: 34px; font-weight: 800; margin-bottom: 8px; letter-spacing: 1px;}
-        .fc-phonetic { font-size: 18px; color: #6c757d; font-family: 'Consolas', monospace; }
-        .fc-back .fc-phonetic { color: #e8f0fe; }
-        .fc-meaning { font-size: 26px; font-weight: bold; }
-        
-        /* Bảng điều khiển phím tắt */
-        .fc-controls { display: flex; justify-content: space-between; font-size: 13px; color: #6c757d; margin-top: 10px; flex-wrap: wrap; gap: 8px; padding: 15px; background: #f8f9fa; border-radius: 8px;}
-        .fc-ctrl-key { background: #e9ecef; padding: 4px 8px; border-radius: 6px; font-weight: bold; color: #333; border: 1px solid #ced4da; box-shadow: 0 2px 0 #ced4da;}
-        
-        /* Màn hình kết thúc gọn gàng */
-        #fcEndScreen { display: none; background: #fff; border: 2px dashed #1a73e8; padding: 30px 20px; border-radius: 12px; text-align: center; }
-        .fc-stat-box { display: flex; justify-content: space-around; background: #e8f0fe; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .fc-stat-item p { margin: 5px 0; font-size: 15px; color: #333; }
-        .fc-stat-item strong { font-size: 24px; }
-        .fc-btn-group { display: flex; gap: 15px; justify-content: center; }
-        .fc-btn-review { background: #ff9800; flex: 1; margin: 0; padding: 12px;}
-        .fc-btn-review:hover { background: #e68a00; }
-        .fc-btn-all { background: #28a745; flex: 1; margin: 0; padding: 12px;}
-        .fc-btn-all:hover { background: #218838; }
+       #quotaDisplay, #budgetDisplay, #allDoneMsg { font-size: 14px; font-weight: bold; text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -167,60 +135,7 @@
             <button id="btnClearLog" style="background: #6c757d; margin-top: 15px;">Xóa Log</button>
             
             <div id="logBox"></div>
-        </div> <!-- KẾT THÚC CỦA mainApp -->
-
-        <!-- ====== GIAO DIỆN FLASHCARD ====== -->
-        <div id="flashcardApp">
-            <div class="fc-header">
-                <span id="fcTitle">📚 Reading 1 - Tenses</span>
-                <span id="fcProgress">1/42</span>
-            </div>
-            
-            <!-- Khu vực đang học bài -->
-            <div id="fcPlayScreen">
-                <div class="fc-card" id="fcCard">
-                    <div class="fc-inner">
-                        <div class="fc-front">
-                            <div class="fc-word" id="fcWord">Word</div>
-                            <div class="fc-phonetic" id="fcPhonetic">/wɜːrd/</div>
-                        </div>
-                        <div class="fc-back">
-                            <div class="fc-meaning" id="fcMeaning">Từ vựng</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="fc-controls">
-                    <span><span class="fc-ctrl-key">←</span> Lùi lại</span>
-                    <span><span class="fc-ctrl-key">Space</span> Lật & Nghe</span>
-                    <span><span class="fc-ctrl-key">↓</span> Ôn lại sau</span>
-                    <span><span class="fc-ctrl-key">→</span> Đã thuộc</span>
-                    <span title="Dành cho Giáo viên"><span class="fc-ctrl-key">↑</span> Skip</span>
-                </div>
-            </div>
-
-            <!-- Khu vực thống kê sau khi lật thẻ cuối -->
-            <div id="fcEndScreen">
-                <h3 style="color: #1a73e8; margin-top: 0; font-size: 22px;">🎉 HOÀN THÀNH BÀI HỌC!</h3>
-                <div class="fc-stat-box">
-                    <div class="fc-stat-item">
-                        <p>Số từ ĐẠT</p>
-                        <strong id="fcScorePass" style="color: #28a745;">0</strong>
-                    </div>
-                    <div class="fc-stat-item">
-                        <p>Cần ÔN LẠI</p>
-                        <strong id="fcScoreRevise" style="color: #dc3545;">0</strong>
-                    </div>
-                </div>
-                
-                <div class="fc-btn-group">
-                    <button id="btnReviseMistakes" class="fc-btn-review" style="display: none;">🔄 ÔN TỪ CHƯA ĐẠT</button>
-                    <button id="btnReviseAll" class="fc-btn-all">🔁 ÔN TOÀN BỘ <span id="fcTotalLabel"></span> TỪ</button>
-                </div>
-            </div>
         </div>
-        <!-- ================================== -->
-
     </div>
     <script src="app.js"></script>
 </body>
