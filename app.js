@@ -242,17 +242,31 @@ btnResetLimit.addEventListener('click', () => {
     }).catch(err => { btnResetLimit.innerText = "🔄 Reset"; addLog("Mất kết nối", "error"); });
 });
 
-// 1. Giao tiếp Server: Nếu kẹt báo lỗi ngay, không giam lỏng
-async function safeFetchWithRetry(payload, maxRetries = 5) {
-    let res = await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-    });
-    let text = await res.text();
-    try {
-        return JSON.parse(text); 
-    } catch (err) {
-        throw new Error("Máy chủ hiện đang có quá nhiều người truy cập cùng lúc. Vui lòng bấm thử lại!");
+// Hàm cho PAID API: Hẹn giờ 3 phút. Nếu chưa gửi kết quả về, gửi lại lệnh 1 lần duy nhất
+async function callServerPaidAPI(payload, sName) {
+    for (let i = 1; i <= 2; i++) { 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // Đợi 3 phút
+        try {
+            let res = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload), signal: controller.signal
+            });
+            clearTimeout(timeoutId); // Nhận được kết quả rồi thì hủy bom hẹn giờ ngay lập tức
+            let text = await res.text();
+            return JSON.parse(text);
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                if (i === 1) {
+                    addLog(`[${sName}] ⚠️ AI chưa phản hồi. Đang gửi lại lệnh`, "warn");
+                    continue; // Kẹt lần 1 thì chạy lại lần 2
+                } else {
+                    let timeoutErr = new Error("PAID_TIMEOUT_FINAL"); timeoutErr.isTimeout = true; throw timeoutErr;
+                }
+            }
+            throw new Error("Máy chủ hiện đang có quá nhiều người truy cập cùng lúc. Vui lòng bấm thử lại!");
+        }
     }
 }
 
@@ -304,7 +318,7 @@ function forceParseJSON(rawText) {
     }
 }
 
-async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName) {
+async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName, timeoutMs) {
     addLog(`[${sName}] 🧠 Đang gọi AI [${model}]...`);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const payload = {
@@ -312,26 +326,46 @@ async function callGeminiAPI(apiKey, model, audioBase64, mimeType, systemPromptC
         contents: [{ role: "user", parts: [ { text: `Học viên vừa trả lời IELTS Speaking trong file audio đính kèm.` }, { inlineData: { mimeType: mimeType, data: audioBase64 } } ] }],
         generationConfig: { temperature: 0.3, responseMimeType: "application/json", responseSchema: responseSchemaConfig }
     };
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!res.ok) { 
-        if (res.status === 400 || res.status === 403) {
-            let err = new Error("Gemini Key không chính xác. Vui lòng kiểm tra lại!"); 
-            err.isKeyError = true; throw err;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) { 
+            if (res.status === 400 || res.status === 403) {
+                let err = new Error("Gemini Key không chính xác. Vui lòng kiểm tra lại!"); err.isKeyError = true; throw err;
+            }
+            let err = new Error(`Lỗi HTTP ${res.status}`); err.status = res.status; throw err; 
         }
-        let err = new Error(`Lỗi HTTP ${res.status}`); err.status = res.status; throw err; 
+        const data = await res.json();
+        if (!data.candidates || data.candidates.length === 0) throw new Error("AI trả về rỗng.");
+        return forceParseJSON(data.candidates[0].content.parts[0].text);
+    } catch (err) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') { let timeoutErr = new Error("TIMEOUT"); timeoutErr.isTimeout = true; throw timeoutErr; }
+        throw err;
     }
-    const data = await res.json();
-    if (!data.candidates || data.candidates.length === 0) throw new Error("AI trả về rỗng.");
-    return forceParseJSON(data.candidates[0].content.parts[0].text);
 }
 
 async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, targetModel, sName) {
     let backupModel = (targetModel === "gemini-3.5-flash") ? "gemini-3-flash-preview" : "gemini-3.5-flash";
+    let isFirstCall = true;
+
     async function tryModelWithRetries(modelName, maxRetries) {
         for (let i = 1; i <= maxRetries; i++) {
-            try { return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName); }
+            try { 
+                let timeoutToUse = isFirstCall ? 120000 : 180000; // Lần đầu 2p, các lần sau 3p
+                isFirstCall = false;
+                return await callGeminiAPI(apiKey, modelName, audioBase64, mimeType, systemPromptConfig, responseSchemaConfig, stepName, sName, timeoutToUse); 
+            }
             catch (err) {
-                if (err.isKeyError) throw err; // NGẮT MẠCH: Văng lỗi ngay lập tức
+                if (err.isKeyError) throw err; 
+                if (err.isTimeout) { 
+                    addLog(`[${sName}] ⚠️ AI chưa phản hồi. Đang gửi lại lệnh`, "warn"); 
+                    continue; // Gửi lại lệnh luôn
+                }
                 if (err.status === 429) { addLog(`[${sName}] ⚠️ Lỗi 429: Hết lượt Free. Kích hoạt PAID API...`, "warn"); throw new Error("PAID_API_TRIGGER"); }
                 else if ([503, 529, 500].includes(err.status)) {
                     if (i < maxRetries) { addLog(`[${sName}] ⚠️ AI ${modelName} quá tải. Đợi 10s...`, "warn"); await new Promise(r => setTimeout(r, 10000)); }
@@ -339,7 +373,9 @@ async function gradeWithFallback(apiKey, audioBase64, mimeType, systemPromptConf
                 } else throw err;
             }
         }
+        throw new Error("MODEL_FAILED_TIMEOUT"); // Xong 3 lần mà vẫn lỗi thì ném ra ngoài để đổi Model
     }
+
     try { return await tryModelWithRetries(targetModel, 3); } 
     catch (e1) {
         if (e1.isKeyError) throw e1; // NGẮT MẠCH: Không cho nhảy sang model Dự phòng
@@ -481,7 +517,7 @@ btnGrade.addEventListener('click', async () => {
             let aiData;
             if (isForceAdmin) {
                 addLog(`[${sName}] 👑 VIP: Đang gọi trực tiếp PAID API qua Server...`);
-                let proxyData = await safeFetchWithRetry({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA, targetModel: targetModel, isForceAdmin: true });
+                let proxyData = await callServerPaidAPI({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA, targetModel: targetModel, isForceAdmin: true }, sName);
                 aiData = forceParseJSON(proxyData.aiResultText);
                 if (currentName === "MinhIELTS@2026") addLog(`[${sName}] 💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
             } else {
@@ -489,7 +525,7 @@ btnGrade.addEventListener('click', async () => {
                 catch (err) {
                     if (err.message === "PAID_API_TRIGGER") {
                         addLog(`[${sName}] 🚨 Đang gọi viện trợ PAID API qua Server...`);
-                        let proxyData = await safeFetchWithRetry({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA });
+                        let proxyData = await callServerPaidAPI({ action: "CALL_PAID_GEMINI", deviceId: deviceId, instructor: currentName, audioBase64: b64, mimeType: mimeType, systemPrompt: SYSTEM_PROMPT, schema: COMBINED_SCHEMA }, sName);
                         aiData = forceParseJSON(proxyData.aiResultText);
                         if (currentName === "MinhIELTS@2026") addLog(`[${sName}] 💸 TIÊU HAO: ${proxyData.costReport.vnd.toLocaleString()} VNĐ`, "warn");
                     } else throw err;
@@ -553,7 +589,11 @@ btnGrade.addEventListener('click', async () => {
 
             fetchQuota(); 
         } catch(err) {
-            addLog(`[${sName}] ❌ LỖI: ${err.message}`, "error");
+            if (err.isTimeout || err.message === "MODEL_FAILED_TIMEOUT" || err.message === "PAID_TIMEOUT_FINAL") {
+                addLog(`[${sName}] ❌ AI đang quá tải, hãy gửi lại bài làm của học viên: ${sName}`, "error");
+            } else {
+                addLog(`[${sName}] ❌ LỖI: ${err.message}`, "error");
+            }
         } finally {
             activeTasksCount--; // Chạy xong giảm biến đếm
             if (activeTasksCount === 0) {
