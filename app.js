@@ -242,7 +242,21 @@ btnResetLimit.addEventListener('click', () => {
     }).catch(err => { btnResetLimit.innerText = "🔄 Reset"; addLog("Mất kết nối", "error"); });
 });
 
-// Hàm cho PAID API: Hẹn giờ 3 phút. Nếu chưa gửi kết quả về, gửi lại lệnh 1 lần duy nhất
+// 1. Giao tiếp Server: Dùng cho gửi Email và gọi Audio Deepgram (HÀM BỊ MẤT)
+async function safeFetchWithRetry(payload, maxRetries = 5) {
+    let res = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+    });
+    let text = await res.text();
+    try {
+        return JSON.parse(text); 
+    } catch (err) {
+        throw new Error("Máy chủ hiện đang có quá nhiều người truy cập cùng lúc. Vui lòng bấm thử lại!");
+    }
+}
+
+// Hàm độc quyền cho PAID API: Hẹn giờ 3 phút. Nếu chưa gửi kết quả về, gửi lại lệnh 1 lần duy nhất!
 async function callServerPaidAPI(payload, sName) {
     for (let i = 1; i <= 2; i++) { 
         const controller = new AbortController();
