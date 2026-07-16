@@ -23,7 +23,7 @@ Trích xuất và sửa lỗi chi tiết từng câu hỏi:
 - CÂU GỢI Ý (UPGRADED): Viết lại một phiên bản câu trả lời hoàn chỉnh. Tôn trọng ý tưởng gốc. Sử dụng từ vựng đơn giản, tự nhiên. TUYỆT ĐỐI KHÔNG sử dụng từ vựng quá học thuật. (LƯU Ý QUAN TRỌNG: KHÔNG Bọc câu trong dấu ngoặc kép. BẮT BUỘC trả về JSON chuẩn, không tự ý xuống dòng).
 
 PHẦN 3: LỘ TRÌNH/KẾ HOẠCH HỌC TẬP CÁ NHÂN HÓA
-Viết ngắn gọn. BẮT BUỘC XUỐNG DÒNG cho mỗi tiêu chí (bắt đầu bằng dấu gạch ngang "-"). Mỗi tiêu chí bao gồm vấn đề và giải pháp khắc phục.`;
+Viết ngắn gọn cho cả 4 tiêu chí. BẮT BUỘC XUỐNG DÒNG cho mỗi tiêu chí (bắt đầu bằng dấu gạch ngang "-"). Mỗi tiêu chí bao gồm vấn đề và giải pháp khắc phục.`;
 
 const COMBINED_SCHEMA = {
     type: "OBJECT",
